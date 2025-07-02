@@ -7,9 +7,8 @@
   <h1 align="center">Kanvas</h1>
 </div>
 
-**KANVAS** is an IR (incident response) case management tool with an intuitive desktop interface, built using Python and Qt. 
-The application supports investigators working with SOD (Spreadsheet of Doom) or similar spreadsheets by providing a unified workspace, enabling key workflows to be completed without switching between multiple applications.
-<img src="images/kanvas.png" alt="Logo">
+**KANVAS**  is an IR (incident response) case management tool with an intuitive desktop interface, built using Python. It provides a unified workspace for investigators working with SOD (Spreadsheet of Doom) or similar spreadsheets, enabling key workflows to be completed without switching between multiple applications.
+<img src="images/kanvas_demo.gif" alt="Logo">
 
 ## ✨ Key Features
 
