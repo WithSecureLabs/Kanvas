@@ -80,8 +80,8 @@ SOD Spreadsheets/
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/arimboor/kanvas.git
-   cd kanvas
+   git clone https://github.com/WithSecureLabs/Kanvas.git
+   cd Kanvas
    ```
 
 2. **Create Virtual Environment**
