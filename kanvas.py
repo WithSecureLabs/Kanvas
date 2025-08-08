@@ -156,6 +156,7 @@ class MainApp:
     
     def connect_ui_elements(self):
         self.tree_view = self.window.ui.treeViewMain
+        self.tree_view.setSortingEnabled(True)
         if self.tree_view:
             self.tree_view.doubleClicked.connect(self.edit_row)
         else:
@@ -1377,4 +1378,5 @@ class MainApp:
 
 if __name__ == "__main__":
     main_app = MainApp()
+
     sys.exit(main_app.run())
