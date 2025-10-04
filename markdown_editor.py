@@ -1,5 +1,7 @@
+# code Reviewed 
 import sys
 import os
+import re
 import logging
 import markdown
 from markdown.extensions.tables import TableExtension
@@ -44,7 +46,6 @@ class FormattedTextBrowser(QTextBrowser):
             self.setReadOnly(True)
 
 class MarkdownViewerEditor(QMainWindow):
-
     def __init__(self):
         super().__init__()
         global _editor_window_ref
@@ -104,12 +105,13 @@ class MarkdownViewerEditor(QMainWindow):
             }
         """)
         self.current_file = None
+        self.current_file_path = None
         self.modified = False
-        self._setup_ui()
-        self._setup_shortcuts()
-        self._load_default_file()
+        self.setup_ui()
+        self.setup_shortcuts()
+        self.load_default_file()
     
-    def _setup_ui(self):
+    def setup_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
@@ -118,19 +120,19 @@ class MarkdownViewerEditor(QMainWindow):
         toolbar_container = QWidget()
         toolbar_container.setStyleSheet("background-color: #E0E0E0; border-bottom: 1px solid #CCCCCC;")
         main_layout.addWidget(toolbar_container)
-        self._create_toolbar(toolbar_container)
+        self.create_toolbar(toolbar_container)
         self.tab_widget = QTabWidget()
         self.tab_widget.setDocumentMode(True)
         main_layout.addWidget(self.tab_widget)
-        self._create_view_tab()
-        self._create_edit_tab()
+        self.create_view_tab()
+        self.create_edit_tab()
         self.tab_widget.addTab(self.view_tab, "View")
         self.tab_widget.addTab(self.edit_tab, "Edit")
-        self.tab_widget.currentChanged.connect(self._tab_changed)
+        self.tab_widget.currentChanged.connect(self.tab_changed)
         self.statusBar().showMessage("Ready", 3000)
         self.statusBar().setStyleSheet("QStatusBar { background-color: #F5F5F5; color: #424242; border-top: 1px solid #E0E0E0; }")
     
-    def _create_toolbar(self, container):
+    def create_toolbar(self, container):
         logger.debug("Creating toolbar")
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -156,8 +158,8 @@ class MarkdownViewerEditor(QMainWindow):
             }
         """)
         self.file_dropdown.addItem("Select a markdown file...")
-        self._populate_markdown_files()
-        self.file_dropdown.currentIndexChanged.connect(self._file_selected_from_dropdown)
+        self.populate_markdown_files()
+        self.file_dropdown.currentIndexChanged.connect(self.file_selected_from_dropdown)
         button_layout.addWidget(self.file_dropdown)
         button_layout.addStretch(1)
         button_style = """
@@ -197,7 +199,7 @@ class MarkdownViewerEditor(QMainWindow):
         button_layout.addWidget(self.save_as_button)
         layout.addLayout(button_layout)
 
-    def _populate_markdown_files(self):
+    def populate_markdown_files(self):
         try:
             application_dir = get_application_path()
             markdown_folder = os.path.join(application_dir, "markdown_files")
@@ -232,7 +234,7 @@ class MarkdownViewerEditor(QMainWindow):
             logger.error(error_msg)
             self.statusBar().showMessage(error_msg, 3000)
 
-    def _file_selected_from_dropdown(self, index):
+    def file_selected_from_dropdown(self, index):
         if index > 0:
             selected_file = self.file_dropdown.currentText()
             application_dir = get_application_path()
@@ -243,7 +245,7 @@ class MarkdownViewerEditor(QMainWindow):
             else:
                 logger.warning(f"Selected file does not exist: {file_path}")
     
-    def _create_view_tab(self):
+    def create_view_tab(self):
         self.view_tab = QWidget()
         view_layout = QVBoxLayout(self.view_tab)
         view_layout.setContentsMargins(10, 10, 10, 10)
@@ -263,7 +265,7 @@ class MarkdownViewerEditor(QMainWindow):
         """)
         view_layout.addWidget(self.text_browser)
     
-    def _create_edit_tab(self):
+    def create_edit_tab(self):
         self.edit_tab = QWidget()
         edit_layout = QVBoxLayout(self.edit_tab)
         edit_layout.setContentsMargins(10, 10, 10, 10)
@@ -276,14 +278,14 @@ class MarkdownViewerEditor(QMainWindow):
                 color: #222222;
                 border: 1px solid #E0E0E0;
                 padding: 10px;
-                font-family: Consolas;
+                font-family: Monaco, Menlo, Consolas;
                 font-size: 11pt;
             }
         """)
-        self.text_edit.textChanged.connect(self._handle_text_changed)
+        self.text_edit.textChanged.connect(self.handle_text_changed)
         edit_layout.addWidget(self.text_edit)
         
-    def _setup_shortcuts(self):
+    def setup_shortcuts(self):
         save_shortcut = QAction("Save", self)
         save_shortcut.setShortcut(QKeySequence.Save)
         save_shortcut.triggered.connect(self.save_file)
@@ -297,8 +299,8 @@ class MarkdownViewerEditor(QMainWindow):
         open_shortcut.triggered.connect(self.open_file)
         self.addAction(open_shortcut)
     
-    def _load_default_file(self):
-        folder_exists, markdown_folder = self._ensure_markdown_folder_exists()
+    def load_default_file(self):
+        folder_exists, markdown_folder = self.ensure_markdown_folder_exists()
         
         if folder_exists and markdown_folder:
             files = [f for f in os.listdir(markdown_folder) if f.lower().endswith('.md')]
@@ -323,6 +325,8 @@ class MarkdownViewerEditor(QMainWindow):
     
     def load_markdown_file(self, file_path):
         try:
+            self.current_file_path = file_path
+            
             progress = QProgressDialog("Loading file...", "Cancel", 0, 100, self)
             progress.setWindowTitle("Loading Markdown")
             progress.setWindowModality(Qt.WindowModal)
@@ -346,12 +350,14 @@ class MarkdownViewerEditor(QMainWindow):
             progress.setValue(70)
             progress.setLabelText("Rendering markdown...")
             QApplication.processEvents()
-            html_content = self._markdown_to_html(markdown_text)
+            html_content = self.markdown_to_html(markdown_text)
             progress.setValue(90)
             QApplication.processEvents()
             self.text_browser.setHtml(html_content)
             self.setWindowTitle(f"Markdown Viewer & Editor - {os.path.basename(file_path)}")
             self.statusBar().showMessage(f"Loaded {os.path.basename(file_path)}", 3000)
+            self.update_dropdown_selection(file_path)
+            
             progress.setValue(100)
         except FileNotFoundError:
             error_message = f"File not found: {file_path}"
@@ -425,6 +431,33 @@ class MarkdownViewerEditor(QMainWindow):
                 return True
         return False
     
+    def update_dropdown_selection(self, file_path):
+        try:
+            application_dir = get_application_path()
+            markdown_folder = os.path.join(application_dir, "markdown_files")
+            file_name = os.path.basename(file_path)
+            
+            if os.path.dirname(os.path.abspath(file_path)) == os.path.abspath(markdown_folder):
+                for i in range(self.file_dropdown.count()):
+                    if self.file_dropdown.itemText(i) == file_name:
+                        self.file_dropdown.blockSignals(True)
+                        self.file_dropdown.setCurrentIndex(i)
+                        self.file_dropdown.blockSignals(False)
+                        logger.debug(f"Updated dropdown selection to: {file_name}")
+                        return
+                self.file_dropdown.blockSignals(True)
+                self.file_dropdown.addItem(file_name)
+                self.file_dropdown.setCurrentIndex(self.file_dropdown.count() - 1)
+                self.file_dropdown.blockSignals(False)
+                logger.debug(f"Added and selected new file in dropdown: {file_name}")
+            else:
+                self.file_dropdown.blockSignals(True)
+                self.file_dropdown.setCurrentIndex(0)  
+                self.file_dropdown.blockSignals(False)
+                logger.debug(f"File {file_name} is not in markdown_files folder, reset dropdown to default")
+        except Exception as e:
+            logger.error(f"Error updating dropdown selection: {str(e)}")
+
     def update_dropdown_with_file(self, file_path):
         application_dir = get_application_path()
         markdown_folder = os.path.join(application_dir, "markdown_files")
@@ -463,7 +496,7 @@ class MarkdownViewerEditor(QMainWindow):
                 QMessageBox.critical(self, "Error", error_msg)
     
     @Slot()
-    def _handle_text_changed(self):
+    def handle_text_changed(self):
         if not self.modified:
             self.modified = True
             self.save_button.setEnabled(True)
@@ -471,13 +504,15 @@ class MarkdownViewerEditor(QMainWindow):
                 self.setWindowTitle(f"Markdown Viewer & Editor - {os.path.basename(self.current_file)} *")
     
     @Slot(int)
-    def _tab_changed(self, index):
+    def tab_changed(self, index):
         if index == 0:
-            self._update_view()
+            self.update_view()
     
-    def _update_view(self):
+    def update_view(self):
         markdown_text = self.text_edit.toPlainText()
-        html_content = self._markdown_to_html(markdown_text)
+        if hasattr(self, 'current_file') and self.current_file:
+            self.current_file_path = self.current_file
+        html_content = self.markdown_to_html(markdown_text)
         self.text_browser.setHtml(html_content)
     
     def closeEvent(self, event):
@@ -486,8 +521,124 @@ class MarkdownViewerEditor(QMainWindow):
         global _editor_window_ref
         _editor_window_ref = None
     
-    def _markdown_to_html(self, markdown_text):
+    def get_language_specific_css(self):
+        return """
+                .highlight .k { color: #d73a49 !important; font-weight: bold; }
+                .highlight .s { color: #032f62 !important; }
+                .highlight .c { color: #6a737d !important; font-style: italic; }
+                .highlight .n { color: #24292e !important; }
+                .highlight .o { color: #d73a49 !important; }
+                .highlight .p { color: #24292e !important; }
+                .highlight .nb { color: #005cc5 !important; }
+                .highlight .mi { color: #005cc5 !important; }
+                .highlight .mf { color: #005cc5 !important; }
+                .highlight .mh { color: #005cc5 !important; }
+                .highlight .mo { color: #005cc5 !important; }
+                .highlight .sa { color: #032f62 !important; }
+                .highlight .sb { color: #032f62 !important; }
+                .highlight .sc { color: #032f62 !important; }
+                .highlight .dl { color: #032f62 !important; }
+                .highlight .sd { color: #032f62 !important; }
+                .highlight .s2 { color: #032f62 !important; }
+                .highlight .se { color: #032f62 !important; }
+                .highlight .sh { color: #032f62 !important; }
+                .highlight .si { color: #032f62 !important; }
+                .highlight .sx { color: #032f62 !important; }
+                .highlight .sr { color: #032f62 !important; }
+                .highlight .s1 { color: #032f62 !important; }
+                .highlight .ss { color: #032f62 !important; }
+                .highlight .bp { color: #24292e !important; }
+                .highlight .fm { color: #6f42c1 !important; font-weight: bold; }
+                .highlight .vc { color: #005cc5 !important; }
+                .highlight .vg { color: #005cc5 !important; }
+                .highlight .vi { color: #005cc5 !important; }
+                .highlight .vm { color: #005cc5 !important; }
+                .highlight .il { color: #005cc5 !important; }
+                .highlight .err { color: #d73a49 !important; background-color: #f8f9fa !important; }
+                .highlight .w { color: #6a737d !important; background-color: #f8f9fa !important; }
+                .highlight .l { color: #24292e !important; }
+                .highlight .ld { color: #24292e !important; }
+                .highlight .nf { color: #6f42c1 !important; font-weight: bold; }
+                .highlight .nc { color: #005cc5 !important; font-weight: bold; }
+                .highlight .na { color: #005cc5 !important; }
+                .highlight .nt { color: #d73a49 !important; }
+                .highlight .c1 { color: #6a737d !important; font-style: italic; }
+                .highlight .cm { color: #6a737d !important; font-style: italic; }
+                .highlight pre {
+                    color: #212529 !important;
+                    background-color: #f8f9fa !important;
+                }
+                .highlight pre code {
+                    color: #212529 !important;
+                    background-color: transparent !important;
+                }
+                pre code {
+                    color: #212529 !important;
+                    background-color: transparent !important;
+                }
+                .highlight pre code:not([class]) {
+                    color: #212529 !important;
+                }
+                .highlight pre code {
+                    color: #212529 !important;
+                }
+                .highlight {
+                    position: relative;
+                }
+                .highlight .nf { color: #dcdcaa !important; font-weight: bold; }
+                .highlight .nc { color: #4ec9b0 !important; font-weight: bold; }
+                .highlight .na { color: #4ec9b0 !important; }
+                .highlight .nt { color: #569cd6 !important; }
+                .highlight .c1 { color: #6a9955 !important; font-style: italic; }
+                .highlight .cm { color: #6a9955 !important; font-style: italic; }
+                pre, .highlight {
+                    background-color: #f8f9fa !important;
+                    color: #212529 !important;
+                }
+                pre *, .highlight * {
+                    color: inherit !important;
+                }
+        """
+
+    def markdown_to_html(self, markdown_text):
         try:
+            logger.debug(f"Processing markdown text: {markdown_text[:200]}...")
+            
+            def convert_image_paths(text):
+                def replace_markdown_img(match):
+                    alt_text = match.group(1)
+                    img_path = match.group(2)
+                    
+                    if img_path.startswith('./') or (not img_path.startswith('/') and not img_path.startswith('http')):
+                        current_file = getattr(self, 'current_file_path', None)
+                        if current_file:
+                            base_dir = os.path.dirname(current_file)
+                            abs_path = os.path.join(base_dir, img_path.lstrip('./'))
+                            abs_path = os.path.abspath(abs_path)
+                            return f'![{alt_text}](file://{abs_path})'
+                    
+                    return match.group(0)
+                
+                def replace_html_img(match):
+                    full_match = match.group(0)
+                    src_match = re.search(r'src=["\']([^"\']+)["\']', full_match)
+                    if src_match:
+                        img_path = src_match.group(1)
+                        if img_path.startswith('./') or (not img_path.startswith('/') and not img_path.startswith('http')):
+                            current_file = getattr(self, 'current_file_path', None)
+                            if current_file:
+                                base_dir = os.path.dirname(current_file)
+                                abs_path = os.path.join(base_dir, img_path.lstrip('./'))
+                                abs_path = os.path.abspath(abs_path)
+                                return re.sub(r'src=["\'][^"\']+["\']', f'src="file://{abs_path}"', full_match)
+                    return full_match
+                
+                text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_markdown_img, text)
+                text = re.sub(r'<img[^>]+src=["\'][^"\']+["\'][^>]*>', replace_html_img, text)
+                return text
+            
+            markdown_text = convert_image_paths(markdown_text)
+            
             css = """
             <style>
                 body {
@@ -512,19 +663,59 @@ class MarkdownViewerEditor(QMainWindow):
                 p { margin: 10px 0; }
                 a { color: #0366d6; text-decoration: none; }
                 pre {
-                    background-color: #f6f8fa;
-                    padding: 10px;
-                    overflow: auto;
-                    font-family: 'Consolas', monospace;
-                    font-size: 0.9em;
-                    border-radius: 3px;
+                    background-color: #f8f9fa !important;
+                    color: #212529 !important;
+                    padding: 20px;
+                    border-radius: 8px;
+                    overflow-x: auto;
+                    font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    border: 1px solid #dee2e6;
+                    margin: 20px 0;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
                 }
                 code {
-                    background-color: #f6f8fa;
-                    padding: 0.2em 0.4em;
-                    font-family: 'Consolas', monospace;
-                    font-size: 0.9em;
+                    background-color: #f1f1f1;
+                    color: #d63384;
+                    padding: 2px 6px;
                     border-radius: 3px;
+                    font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+                    font-size: 0.9em;
+                    border: 1px solid #e1e1e1;
+                }
+                pre code {
+                    background-color: transparent !important;
+                    color: #212529 !important;
+                    padding: 0;
+                    border: none;
+                    font-size: inherit;
+                }
+                .highlight {
+                    background-color: #f8f9fa !important;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    margin: 20px 0;
+                    border: 1px solid #dee2e6;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                }
+                .highlight pre {
+                    margin: 0;
+                    border: none;
+                    border-radius: 0;
+                    background-color: #f8f9fa !important;
+                    color: #212529 !important;
+                }
+                .highlight .code {
+                    padding: 20px;
+                    background-color: #f8f9fa !important;
+                }
+                .highlight .highlight {
+                    background-color: #f8f9fa !important;
+                }
+                .highlight .highlight pre {
+                    background-color: #f8f9fa !important;
+                    color: #212529 !important;
                 }
                 blockquote {
                     padding: 0 1em;
@@ -550,21 +741,39 @@ class MarkdownViewerEditor(QMainWindow):
                 }
                 hr { height: 1px; background-color: #e1e4e8; border: 0; margin: 20px 0; }
             </style>
-            """
+            """ + self.get_language_specific_css()
             html_content = markdown.markdown(
                 markdown_text, 
                 extensions=[
                     TableExtension(), 
                     FencedCodeExtension(),
+                    'codehilite',
                     'nl2br',  
-                ]
+                ],
+                extension_configs={
+                    'codehilite': {
+                        'css_class': 'highlight',
+                        'use_pygments': True,
+                        'linenums': False,
+                        'guess_lang': True
+                    }
+                }
             )
+            logger.debug("Successfully processed markdown with syntax highlighting")
             return f"<html><head>{css}</head><body>{html_content}</body></html>"
         except Exception as e:
             logger.error(f"Error rendering markdown: {str(e)}")
-            return "<html><body><p>Error rendering markdown</p></body></html>"
+            try:
+                html_content = markdown.markdown(
+                    markdown_text, 
+                    extensions=['nl2br']
+                )
+                return f"<html><head>{css}</head><body>{html_content}</body></html>"
+            except Exception as fallback_error:
+                logger.error(f"Fallback processing also failed: {str(fallback_error)}")
+                return "<html><body><p>Error rendering markdown. Please check the file format.</p></body></html>"
 
-    def _ensure_markdown_folder_exists(self):
+    def ensure_markdown_folder_exists(self):
         try:
             application_dir = get_application_path()
             markdown_folder = os.path.join(application_dir, "markdown_files")
