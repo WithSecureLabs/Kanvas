@@ -1,9 +1,10 @@
+# code reviewed 
 import logging
+import sys
 from PySide6.QtWidgets import (QScrollArea, QFrame, QLabel, QVBoxLayout, QHBoxLayout, 
-                              QWidget, QSizePolicy, QMessageBox)
-from PySide6.QtCore import Qt, QSize
+                              QWidget, QMessageBox, QPushButton)
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QColor, QPixmap, QPainter
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
@@ -12,12 +13,19 @@ def mitre_mapping(window):
     if not hasattr(window, "current_workbook") or not hasattr(window, "current_file_path"):
         QMessageBox.warning(window, "Error", "No Excel file loaded. Please load a file first.")
         return None
-    file_path = window.current_file_path
     mitre_window = QWidget(window)
     mitre_window.setWindowTitle("MITRE ATT&CK Mapping")
-    mitre_window.setFixedSize(int(window.width() * 0.4), int(window.height() * 0.8))
     mitre_window.setStyleSheet("background-color: white;") 
-    mitre_window.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
+    
+    if sys.platform == "darwin":
+        mitre_window.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | 
+                                  Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
+        mitre_window.setFixedSize(800, 700)
+    else:
+        mitre_window.setWindowFlags(Qt.Window | Qt.WindowTitleHint | 
+                                  Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint |
+                                  Qt.WindowMaximizeButtonHint)
+        mitre_window.setFixedSize(int(window.width() * 0.4), int(window.height() * 0.8))
     main_layout = QVBoxLayout(mitre_window)
     main_layout.setContentsMargins(20, 20, 20, 20)
     main_layout.setSpacing(15)
@@ -173,6 +181,20 @@ def mitre_mapping(window):
     footer.setStyleSheet("color: #888888; font-style: italic;")
     footer.setAlignment(Qt.AlignRight)
     main_layout.addWidget(footer)
+    
+    if sys.platform == "darwin":
+        button_frame = QWidget()
+        button_layout = QHBoxLayout(button_frame)
+        button_layout.setContentsMargins(0, 10, 0, 10)
+        close_button = QPushButton("Close")
+        close_button.setFixedWidth(100)
+        close_button.setStyleSheet("background-color: #4CAF50; color: white;")
+        close_button.clicked.connect(mitre_window.close)
+        button_layout.addStretch()
+        button_layout.addWidget(close_button)
+        button_layout.addStretch()
+        main_layout.addWidget(button_frame)
+    
     window.mitre_window = mitre_window
     mitre_window.show()
     return mitre_window
