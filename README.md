@@ -113,7 +113,8 @@ SOD Spreadsheets/
 
 ## ⚠️Notes
 
-- MITRE Flow Builder uses QT WebBrowser (Chromium-based). It may sometimes have performance issues, especially on Windows.
+- The `incident timeline` logic only works if you’ve mapped the MITRE TTPs in the timeline sheet for each entry.
+- MITRE `Flow Builder` uses QT WebBrowser (Chromium-based). It may sometimes have performance issues, especially on Windows.
 
 ## Acknowledgements
 
