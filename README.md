@@ -53,6 +53,7 @@ SOD Spreadsheets/
 - **Domain / URL Insights**: WHOIS data, DNS records, and more using various API integrations.
 - **File Hash Insights**: Lookup binary file insights on various platforms based on hash values.
 - **CVE Insights**: Information on known exploit usage based on CISA and other vulnerability intelligence sources.
+- **Email Insights**: "Information on whether the email address has appeared in any known data breaches.
 - 📌**Ransomware Victim**: Verify if a customer or organization’s data has been published online following a ransomware attack.
 
 >[!TIP]
