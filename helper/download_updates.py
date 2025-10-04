@@ -1,5 +1,6 @@
+# code reviewed 
 from PySide6.QtWidgets import QProgressBar, QMessageBox, QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout
-from PySide6.QtCore import Qt, QThread, Signal, QObject
+from PySide6.QtCore import QThread, Signal, QObject
 import requests
 import sqlite3
 import csv
@@ -8,16 +9,16 @@ import os
 import pandas as pd
 from pathlib import Path
 import logging
+import zipfile
+import shutil
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
 
 class DownloadWorker(QObject):
-    """Worker class for handling downloads and database updates in a separate thread."""
-    progress = Signal(int)  
-    status_update = Signal(str) 
-    finished = Signal(bool, str)  
-    file_progress = Signal(int, int)  
+    progress = Signal(int)
+    status_update = Signal(str)
+    finished = Signal(bool, str)
+    file_progress = Signal(int, int)
     
     def __init__(self, db_path, urls, headers):
         super().__init__()
@@ -25,14 +26,12 @@ class DownloadWorker(QObject):
         self.urls = urls
         self.headers = headers
         self.should_cancel = False
-        
     def cancel(self):
         self.should_cancel = True
-        
     def run(self):
         try:
             downloaded_files = []
-            total_steps = len(self.urls) + 1  
+            total_steps = len(self.urls) + 1
             current_step = 0
             for i, (filename, url) in enumerate(self.urls.items(), start=1):
                 if self.should_cancel:
@@ -71,6 +70,8 @@ class DownloadWorker(QObject):
                 return
             self.status_update.emit("Updating database...")
             self.update_database()
+            self.status_update.emit("Processing LOLBAS files...")
+            self.process_lolbas_zip()
             self.status_update.emit("Cleaning up temporary files...")
             self.cleanup_files(downloaded_files)
             self.progress.emit(100)
@@ -79,7 +80,6 @@ class DownloadWorker(QObject):
         except Exception as e:
             logger.error(f"Error in download worker: {e}")
             self.finished.emit(False, f"Error: {str(e)}")
-
     def update_database(self):
         def insert_portal_data(cursor, group_name, portal_name, primary_url, source_file):
             cursor.execute('''
@@ -91,7 +91,6 @@ class DownloadWorker(QObject):
             cursor = conn.cursor()
             cursor.execute("DELETE FROM tor_list")
             cursor.execute("DELETE FROM sqlite_sequence WHERE name='tor_list'")
-            
             def insert_data(file_name, source):
                 try:
                     with open(file_name, "r") as file:
@@ -221,19 +220,22 @@ class DownloadWorker(QObject):
                             df_bookmarks[col] = ""
                     df_bookmarks = df_bookmarks[bookmarks_columns]
                     for _, row in df_bookmarks.iterrows():
-                        cursor.execute('''
-                            INSERT INTO bookmarks (group_name, portal_name, source_file, primary_url)
-                            VALUES (?, ?, ?, ?)
-                        ''', (
-                            row['group_name'],
-                            row['portal_name'],
-                            row['source_file'],
-                            row['primary_url']
-                        ))
+                        cursor.execute("SELECT COUNT(*) FROM bookmarks WHERE primary_url = ?", (row['primary_url'],))
+                        if cursor.fetchone()[0] == 0:
+                            cursor.execute('''
+                                INSERT INTO bookmarks (group_name, portal_name, source_file, primary_url)
+                                VALUES (?, ?, ?, ?)
+                            ''', (
+                                row['group_name'],
+                                row['portal_name'],
+                                row['source_file'],
+                                row['primary_url']
+                            ))
                 except Exception as e:
                     logger.error(f"Error processing {onetracker_csv}: {e}")
             else:
                 logger.warning(f"File {onetracker_csv} does not exist, skipping.")
+            cursor.execute("DELETE FROM bookmarks WHERE portal_name = 'PlaceHolder' AND id NOT IN (SELECT MIN(id) FROM bookmarks WHERE portal_name = 'PlaceHolder')")
             cursor.execute("DELETE FROM defend")
             cursor.execute("DELETE FROM sqlite_sequence WHERE name='defend'")
             d3fend_csv = Path("d3fend-full-mappings.csv")
@@ -276,7 +278,27 @@ class DownloadWorker(QObject):
         finally:
             if conn:
                 conn.close()
-
+    def process_lolbas_zip(self):
+        zip_file = Path("lolbas_binaries.zip")
+        if not zip_file.exists():
+            logger.warning(f"LOLBAS zip file {zip_file} does not exist, skipping.")
+            return
+        
+        try:
+            data_dir = Path("data")
+            data_dir.mkdir(exist_ok=True)
+            lolbas_dir = data_dir / "lolbas"
+            if lolbas_dir.exists():
+                logger.info(f"Deleting existing LOLBAS directory: {lolbas_dir}")
+                shutil.rmtree(lolbas_dir)
+            lolbas_dir.mkdir(exist_ok=True)
+            logger.info(f"Extracting {zip_file} to {lolbas_dir}")
+            with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+                zip_ref.extractall(lolbas_dir)
+                yml_files = list(lolbas_dir.rglob("*.yml"))
+                logger.info(f"Successfully extracted {len(yml_files)} .yml files to {lolbas_dir}")
+        except Exception as e:
+            logger.error(f"Error processing LOLBAS zip file: {e}")
     def cleanup_files(self, file_list):
         for file_to_delete in file_list:
             try:
@@ -285,10 +307,7 @@ class DownloadWorker(QObject):
                     logger.info(f"Deleted file: {file_to_delete}")
             except OSError as e:
                 logger.error(f"Error deleting file {file_to_delete}: {e}")
-
-
 class DownloadProgressDialog(QDialog):
-    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Downloading Updates")
@@ -302,9 +321,7 @@ class DownloadProgressDialog(QDialog):
                 parent_rect.center().x() - self.width() // 2,
                 parent_rect.center().y() - self.height() // 2
             )
-        
         self.setup_ui()
-        
     def setup_ui(self):
         layout = QVBoxLayout(self)
         self.status_label = QLabel("Preparing to download...")
@@ -321,7 +338,6 @@ class DownloadProgressDialog(QDialog):
         button_layout.addStretch()
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)
-        
     def start_download(self, db_path, urls, headers):
         self.thread = QThread()
         self.worker = DownloadWorker(db_path, urls, headers)
@@ -333,16 +349,13 @@ class DownloadProgressDialog(QDialog):
         self.thread.started.connect(self.worker.run)
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
-        
     def update_file_progress(self, current_file, total_files):
         self.file_label.setText(f"File {current_file} of {total_files}")
-        
     def cancel_download(self):
         if self.worker:
             self.worker.cancel()
             self.cancel_button.setText("Cancelling...")
             self.cancel_button.setEnabled(False)
-            
     def download_finished(self, success, message):
         if self.thread:
             self.thread.quit()
@@ -353,8 +366,6 @@ class DownloadProgressDialog(QDialog):
         msg_box.setIcon(QMessageBox.Information if success else QMessageBox.Warning)
         msg_box.exec()
         self.accept() if success else self.reject()
-
-
 def download_updates(window):
     urls = {
         "alireza-rezaee.csv": "https://raw.githubusercontent.com/alireza-rezaee/tor-nodes/main/latest.all.csv",
@@ -378,10 +389,10 @@ def download_updates(window):
         "onetracker.csv": "https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/onetracker.csv",
         "evidencetype.csv": "https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/evidencetype.csv",
         "secureupdates.txt": "https://secureupdates.checkpoint.com/IP-list/TOR.txt",
+        "lolbas_binaries.zip": "https://raw.githubusercontent.com/arimboor/kanvas_lookups/main/lolbas_binaries.zip",
     }
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-    
     db_path = getattr(window, "db_path", "kanvas.db")
     dialog = DownloadProgressDialog(window)
     dialog.start_download(db_path, urls, headers)
