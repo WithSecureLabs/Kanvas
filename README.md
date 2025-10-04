@@ -23,7 +23,8 @@
 
 - 📌**Attack Chain Visualization**: Visualizes lateral movement for quick review of the adversary’s attack path. The re-draw options help display the diagram in multiple ways.
 - 📌**Incident Timeline**: The incident timeline is presented in chronological order, helping investigators quickly understand the sequence and timing of the overall incident.
-- **Export for Reporting**: The lateral movement and timeline visualizations can be exported as image files or CSV, allowing direct use in presentations or investigation reports.
+- 📌**MITRE Flow Builder**: Lets you visualize & share sequences of adversary actions. You can populate flows with attacker TTP, then link them to map the sequence of techniques seen during an incident..
+- **Export for Reporting**: The lateral movement & timeline visualizations can be exported as image files or CSV, allowing direct use in presentations or investigation reports.
 
 >[!TIP]
 > Ensure the following column names exist and match exactly if you're using your own spreadsheet.
@@ -53,7 +54,7 @@ SOD Spreadsheets/
 - **Domain / URL Insights**: WHOIS data, DNS records, and more using various API integrations.
 - **File Hash Insights**: Lookup binary file insights on various platforms based on hash values.
 - **CVE Insights**: Information on known exploit usage based on CISA and other vulnerability intelligence sources.
-- **Email Insights**: "Information on whether the email address has appeared in any known data breaches.
+- **Email Insights**: Information on whether the email address has appeared in any known data breaches.
 - 📌**Ransomware Victim**: Verify if a customer or organization’s data has been published online following a ransomware attack.
 
 >[!TIP]
