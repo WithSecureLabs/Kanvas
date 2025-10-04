@@ -1,3 +1,4 @@
+# code reviewed 
 from PySide6.QtWidgets import (
     QWidget, QLabel, QLineEdit, QTextEdit, QPushButton, QScrollArea, 
     QVBoxLayout, QHBoxLayout, QFrame, QMessageBox
@@ -13,21 +14,31 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
 
 def open_cve_window(parent, db_path):
-    cve_window = QWidget(parent)  
+    cve_window = QWidget(parent.window)  # Use parent.window like Event ID window
     cve_window.setWindowTitle("CVE Lookup")
     cve_window.resize(720, 600)
-    cve_window.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
+    cve_window.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
     main_layout = QVBoxLayout(cve_window)
     main_layout.setSpacing(10)
     main_layout.setContentsMargins(15, 15, 15, 15)
+    
+    input_layout = QHBoxLayout()
     input_label = QLabel("CVE:")
     input_label.setFont(QFont("Arial", 12))
-    main_layout.addWidget(input_label)
+    input_layout.addWidget(input_label)
+    
     cve_entry = QLineEdit()
     cve_entry.setFont(QFont("Arial", 10))
-    cve_entry.setMinimumWidth(550)
+    cve_entry.setMinimumWidth(300)
     cve_entry.setPlaceholderText("CVE-2025-44228")
-    main_layout.addWidget(cve_entry)
+    input_layout.addWidget(cve_entry)
+    
+    submit_button = QPushButton("Search")
+    submit_button.setFixedWidth(100)
+    submit_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    input_layout.addWidget(submit_button)
+    
+    main_layout.addLayout(input_layout)
     buttons_layout = QVBoxLayout()
     buttons_row1 = QHBoxLayout()
     buttons_row2 = QHBoxLayout()
@@ -92,16 +103,15 @@ def open_cve_window(parent, db_path):
     result_text.setFont(QFont("Arial", 10))
     result_text.setReadOnly(True)
     main_layout.addWidget(result_text, 1)
-    button_frame = QWidget()
-    button_layout = QHBoxLayout(button_frame)
-    button_layout.setContentsMargins(0, 10, 0, 0)
-    submit_button = QPushButton("Submit")
-    submit_button.setFixedWidth(100)
-    submit_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    
+    button_layout = QHBoxLayout()
+    close_button = QPushButton("Close")
+    close_button.setFixedWidth(100)
+    close_button.setStyleSheet("background-color: #d3d3d3; color: black;")
     button_layout.addStretch()
-    button_layout.addWidget(submit_button)
+    button_layout.addWidget(close_button)
     button_layout.addStretch()
-    main_layout.addWidget(button_frame)
+    main_layout.addLayout(button_layout)
     
     def fetch_and_display_cve():
         cve_id = cve_entry.text().strip()
@@ -118,7 +128,10 @@ def open_cve_window(parent, db_path):
             logger.info("Data received from API")
         except requests.exceptions.RequestException as e:
             result_text.append(f"Error fetching data: {e}")
-            logger.error(f"Request error: {e}")
+            return
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            result_text.append(f"Unexpected error: {e}")
             return
 
         cve_meta = data.get("cveMetadata", {})
@@ -214,7 +227,8 @@ def open_cve_window(parent, db_path):
                     break
                 cursor.mergeCharFormat(fmt)
     submit_button.clicked.connect(fetch_and_display_cve)
-    cve_entry.returnPressed.connect(fetch_and_display_cve) 
+    cve_entry.returnPressed.connect(fetch_and_display_cve)
+    close_button.clicked.connect(cve_window.close)
     cve_window.show()
     parent.cve_window_ref = cve_window  
     return cve_window
