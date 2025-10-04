@@ -1,3 +1,4 @@
+# code Reviewed 
 from PySide6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QPushButton, QHBoxLayout
 from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT
@@ -9,14 +10,19 @@ import numpy as np
 import os
 import logging
 from matplotlib.patches import FancyArrowPatch
+from helper.system_type import SystemTypeManager, IconManager as DatabaseIconManager
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
 
 class IconManager:
-    def __init__(self):
-        self.icon_cache = {}
-        self._load_icons()
+    def __init__(self, system_type_manager=None):
+        if system_type_manager is None:
+            self.icon_cache = {}
+            self._load_icons_hardcoded()
+        else:
+            self.database_icon_manager = DatabaseIconManager(system_type_manager)
+            self.icon_cache = self.database_icon_manager.icon_cache
     
     def create_circle_icon(self, color):
         fig = plt.figure(figsize=(1, 1))
@@ -33,7 +39,7 @@ class IconManager:
         plt.close(fig)  
         return img
     
-    def _load_icons(self):
+    def _load_icons_hardcoded(self):
         try:
             image_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
             self.icon_cache["computer"] = mpimg.imread(os.path.join(image_dir, "computer_icon.png"))
@@ -145,42 +151,47 @@ class IconManager:
             self.icon_cache["unknown"] = self.create_circle_icon("#808080")
 
     def get_icon(self, system_type):
-        if system_type and system_type.lower() == "server-dc":
-            return self.icon_cache["server-dc"]
-        elif system_type and system_type.lower() == "server-database":
-            return self.icon_cache["server-database"]
-        elif system_type and system_type.lower() == "server-web":
-            return self.icon_cache["server-web"]
-        elif system_type and system_type.lower() == "server-file":
-            return self.icon_cache["server-file"]
-        elif system_type and system_type.lower() == "server-application":
-            return self.icon_cache["server-application"]
-        elif system_type and system_type.lower() == "gateway-firewall":
-            return self.icon_cache["gateway-firewall"]
-        elif system_type and system_type.lower() == "gateway-vpn":
-            return self.icon_cache["gateway-vpn"]
-        elif system_type and system_type.lower() == "gateway-switch":
-            return self.icon_cache["gateway-switch"]
-        elif system_type and system_type.lower() == "gateway-router":
-            return self.icon_cache["gateway-router"]
-        elif system_type and system_type.lower() == "gateway-web proxy":
-            return self.icon_cache["gateway-web proxy"]
-        elif system_type and system_type.lower() == "gateway-email":
-            return self.icon_cache["gateway-email"]
-        elif system_type and system_type.lower() == "gateway-dns":
-            return self.icon_cache["gateway-dns"]
-        elif system_type and system_type.lower() == "ot device":
-            return self.icon_cache["ot device"]
-        elif system_type and system_type.lower() == "mobile":
-            return self.icon_cache["mobile"]
-        elif system_type and system_type.lower() == "unknown":
-            return self.icon_cache["unknown"]
-        elif system_type and "attacker" in system_type.lower():
-            return self.icon_cache["attacker-machine"]
-        elif system_type and "server" in system_type.lower():
-            return self.icon_cache["server"]
+        if hasattr(self, 'database_icon_manager'):
+            # Use database-driven approach
+            return self.database_icon_manager.get_icon(system_type)
         else:
-            return self.icon_cache["computer"]
+            # Fallback to hardcoded approach
+            if system_type and system_type.lower() == "server-dc":
+                return self.icon_cache["server-dc"]
+            elif system_type and system_type.lower() == "server-database":
+                return self.icon_cache["server-database"]
+            elif system_type and system_type.lower() == "server-web":
+                return self.icon_cache["server-web"]
+            elif system_type and system_type.lower() == "server-file":
+                return self.icon_cache["server-file"]
+            elif system_type and system_type.lower() == "server-application":
+                return self.icon_cache["server-application"]
+            elif system_type and system_type.lower() == "gateway-firewall":
+                return self.icon_cache["gateway-firewall"]
+            elif system_type and system_type.lower() == "gateway-vpn":
+                return self.icon_cache["gateway-vpn"]
+            elif system_type and system_type.lower() == "gateway-switch":
+                return self.icon_cache["gateway-switch"]
+            elif system_type and system_type.lower() == "gateway-router":
+                return self.icon_cache["gateway-router"]
+            elif system_type and system_type.lower() == "gateway-web proxy":
+                return self.icon_cache["gateway-web proxy"]
+            elif system_type and system_type.lower() == "gateway-email":
+                return self.icon_cache["gateway-email"]
+            elif system_type and system_type.lower() == "gateway-dns":
+                return self.icon_cache["gateway-dns"]
+            elif system_type and system_type.lower() == "ot device":
+                return self.icon_cache["ot device"]
+            elif system_type and system_type.lower() == "mobile":
+                return self.icon_cache["mobile"]
+            elif system_type and system_type.lower() == "unknown":
+                return self.icon_cache["unknown"]
+            elif system_type and "attacker" in system_type.lower():
+                return self.icon_cache["attacker-machine"]
+            elif system_type and "server" in system_type.lower():
+                return self.icon_cache["server"]
+            else:
+                return self.icon_cache["computer"]
 
 class SystemTypeLoader:
     def __init__(self, workbook):
@@ -331,7 +342,7 @@ class NetworkRenderer:
         nx.draw_networkx_labels(self.G, label_pos, labels={n: n for n in self.G.nodes()},
                               font_size=9, font_weight='normal',
                               bbox=dict(facecolor='white', edgecolor='gray', alpha=0.9, pad=1, boxstyle="round,pad=0.2"))
-        plt.title("Network Connections", fontsize=14)
+        plt.title("Lateral Movemnt", fontsize=14)
         self.ax.set_axis_off()
         plt.tight_layout()
         self.canvas.draw()
@@ -400,11 +411,11 @@ class NetworkVisualizationDialog:
         layout.setContentsMargins(0, 0, 0, 0)  
         self.vis_window.setLayout(layout)
         self.renderer.draw_network(seed=42)
-        self.vis_window.show()  # Changed from showMaximized() to show()
+        self.vis_window.show()  
 
 class NetworkVisualizer:
-    def __init__(self):
-        self.icon_manager = IconManager()
+    def __init__(self, system_type_manager=None):
+        self.icon_manager = IconManager(system_type_manager)
     
     def visualize_network(self, window):
         try:
@@ -448,6 +459,6 @@ class NetworkVisualizer:
             logger.error(f"Failed to visualize network: {str(e)}")
             return None
         
-def visualize_network(window):
-    visualizer = NetworkVisualizer()
+def visualize_network(window, system_type_manager=None):
+    visualizer = NetworkVisualizer(system_type_manager)
     visualizer.visualize_network(window)
