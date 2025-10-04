@@ -1,50 +1,16 @@
-# Requirements for KANVAS Application
-# Core GUI Framework
 PySide6>=6.0.0
-
-# Excel file manipulation
 openpyxl>=3.0.0
-
-# Data analysis and manipulation
 pandas>=1.3.0
 numpy>=1.21.0
-
-# Network visualization and graph analysis
 networkx>=2.6.0
 matplotlib>=3.5.0
-
-# Web requests and API interactions
 requests>=2.25.0
-
-# Domain and network analysis
+openai>=1.0.0
+anthropic>=0.18.0
 python-whois>=0.7.0
 shodan>=1.25.0
-
-# Markdown processing
 Markdown>=3.3.0
-
-# File locking for concurrent access
+PyYAML>=6.0
+pygments>=2.10.0
 filelock>=3.0.0
-
-# Qt bindings (included with PySide6 but listed for completeness)
 shiboken6>=6.0.0
-
-# Standard library modules (no installation required):
-# - sys
-# - os
-# - sqlite3
-# - shutil
-# - re
-# - traceback
-# - logging
-# - pathlib
-# - datetime
-# - collections
-# - csv
-# - json
-# - socket
-# - threading
-# - concurrent.futures
-# - functools
-# - urllib.parse
-# - contextlib
