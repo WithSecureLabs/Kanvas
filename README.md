@@ -111,6 +111,10 @@ SOD Spreadsheets/
 > When using the tool for the first time, ensure that you download the latest updates by clicking on `Download Updates`.
 ---
 
+## Notes
+
+- MITRE Flow Builder uses QT WebBrowser (Chromium-based). It may sometimes have performance issues, especially on Windows.
+
 ## Acknowledgements
 
  - [Publicly disclosed ransomware victim data](https://www.ransomware.live/about) by [Julien Mousqueton](https://www.linkedin.com/in/julienmousqueton/)
