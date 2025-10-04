@@ -18,7 +18,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGroupBox,
     QHBoxLayout, QHeaderView, QLabel, QMainWindow,
     QPushButton, QSizePolicy, QSpacerItem, QTreeView,
-    QVBoxLayout, QWidget)
+    QVBoxLayout, QWidget, QMenu)
+from PySide6.QtGui import QAction
 
 class Ui_KanvasMainWindow(object):
     def setupUi(self, KanvasMainWindow):
@@ -50,68 +51,53 @@ class Ui_KanvasMainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.left_button_7.sizePolicy().hasHeightForWidth())
         self.left_button_7.setSizePolicy(sizePolicy)
-
         self.caseLayout.addWidget(self.left_button_7)
-
         self.left_button_8 = QPushButton(self.grpCase)
         self.left_button_8.setObjectName(u"left_button_8")
         sizePolicy.setHeightForWidth(self.left_button_8.sizePolicy().hasHeightForWidth())
         self.left_button_8.setSizePolicy(sizePolicy)
-
         self.caseLayout.addWidget(self.left_button_8)
-
         self.left_button_6 = QPushButton(self.grpCase)
         self.left_button_6.setObjectName(u"left_button_6")
         sizePolicy.setHeightForWidth(self.left_button_6.sizePolicy().hasHeightForWidth())
         self.left_button_6.setSizePolicy(sizePolicy)
-
         self.caseLayout.addWidget(self.left_button_6)
-
         self.left_button_5 = QPushButton(self.grpCase)
         self.left_button_5.setObjectName(u"left_button_5")
         sizePolicy.setHeightForWidth(self.left_button_5.sizePolicy().hasHeightForWidth())
         self.left_button_5.setSizePolicy(sizePolicy)
-
         self.caseLayout.addWidget(self.left_button_5)
-
         self.left_button_4 = QPushButton(self.grpCase)
         self.left_button_4.setObjectName(u"left_button_4")
         sizePolicy.setHeightForWidth(self.left_button_4.sizePolicy().hasHeightForWidth())
         self.left_button_4.setSizePolicy(sizePolicy)
-
         self.caseLayout.addWidget(self.left_button_4)
-
         self.left_button_3 = QPushButton(self.grpCase)
         self.left_button_3.setObjectName(u"left_button_3")
         sizePolicy.setHeightForWidth(self.left_button_3.sizePolicy().hasHeightForWidth())
         self.left_button_3.setSizePolicy(sizePolicy)
-
         self.caseLayout.addWidget(self.left_button_3)
-
         self.left_button_2 = QPushButton(self.grpCase)
         self.left_button_2.setObjectName(u"left_button_2")
         sizePolicy.setHeightForWidth(self.left_button_2.sizePolicy().hasHeightForWidth())
         self.left_button_2.setSizePolicy(sizePolicy)
-
         self.caseLayout.addWidget(self.left_button_2)
-
-
+        self.left_button_21 = QPushButton(self.grpCase)
+        self.left_button_21.setObjectName(u"left_button_21")
+        sizePolicy.setHeightForWidth(self.left_button_21.sizePolicy().hasHeightForWidth())
+        self.left_button_21.setSizePolicy(sizePolicy)
+        self.caseLayout.addWidget(self.left_button_21)
         self.verticalLayout.addWidget(self.grpCase)
-
         self.labelSheet = QLabel(self.sidePanel)
         self.labelSheet.setObjectName(u"labelSheet")
         sizePolicy.setHeightForWidth(self.labelSheet.sizePolicy().hasHeightForWidth())
         self.labelSheet.setSizePolicy(sizePolicy)
-
         self.verticalLayout.addWidget(self.labelSheet)
-
         self.comboBoxSheet = QComboBox(self.sidePanel)
         self.comboBoxSheet.setObjectName(u"comboBoxSheet")
         sizePolicy.setHeightForWidth(self.comboBoxSheet.sizePolicy().hasHeightForWidth())
         self.comboBoxSheet.setSizePolicy(sizePolicy)
-
         self.verticalLayout.addWidget(self.comboBoxSheet)
-
         self.grpLookups = QGroupBox(self.sidePanel)
         self.grpLookups.setObjectName(u"grpLookups")
         self.lookupsLayout = QVBoxLayout(self.grpLookups)
@@ -120,37 +106,26 @@ class Ui_KanvasMainWindow(object):
         self.lookupsLayout.setObjectName(u"lookupsLayout")
         self.left_button_9 = QPushButton(self.grpLookups)
         self.left_button_9.setObjectName(u"left_button_9")
-
         self.lookupsLayout.addWidget(self.left_button_9)
-
         self.left_button_11 = QPushButton(self.grpLookups)
         self.left_button_11.setObjectName(u"left_button_11")
-
         self.lookupsLayout.addWidget(self.left_button_11)
-
+        self.left_button_22 = QPushButton(self.grpLookups)
+        self.left_button_22.setObjectName(u"left_button_22")
+        self.lookupsLayout.addWidget(self.left_button_22)
         self.left_button_12 = QPushButton(self.grpLookups)
         self.left_button_12.setObjectName(u"left_button_12")
-
         self.lookupsLayout.addWidget(self.left_button_12)
-
         self.left_button_13 = QPushButton(self.grpLookups)
         self.left_button_13.setObjectName(u"left_button_13")
-
         self.lookupsLayout.addWidget(self.left_button_13)
-
         self.left_button_14 = QPushButton(self.grpLookups)
         self.left_button_14.setObjectName(u"left_button_14")
-
         self.lookupsLayout.addWidget(self.left_button_14)
-
         self.left_button_10 = QPushButton(self.grpLookups)
         self.left_button_10.setObjectName(u"left_button_10")
-
         self.lookupsLayout.addWidget(self.left_button_10)
-
-
         self.verticalLayout.addWidget(self.grpLookups)
-
         self.grpKBase = QGroupBox(self.sidePanel)
         self.grpKBase.setObjectName(u"grpKBase")
         self.kbaseLayout = QVBoxLayout(self.grpKBase)
@@ -159,22 +134,21 @@ class Ui_KanvasMainWindow(object):
         self.kbaseLayout.setObjectName(u"kbaseLayout")
         self.left_button_15 = QPushButton(self.grpKBase)
         self.left_button_15.setObjectName(u"left_button_15")
-
         self.kbaseLayout.addWidget(self.left_button_15)
-
         self.left_button_16 = QPushButton(self.grpKBase)
         self.left_button_16.setObjectName(u"left_button_16")
-
         self.kbaseLayout.addWidget(self.left_button_16)
-
         self.left_button_17 = QPushButton(self.grpKBase)
         self.left_button_17.setObjectName(u"left_button_17")
-
+        self.left_button_17.setVisible(False)
         self.kbaseLayout.addWidget(self.left_button_17)
-
-
+        self.left_button_20 = QPushButton(self.grpKBase)
+        self.left_button_20.setObjectName(u"left_button_20")
+        sizePolicy.setHeightForWidth(self.left_button_20.sizePolicy().hasHeightForWidth())
+        self.left_button_20.setSizePolicy(sizePolicy)
+        self.left_button_20.setText("LLM Assistance")
+        self.kbaseLayout.addWidget(self.left_button_20)
         self.verticalLayout.addWidget(self.grpKBase)
-
         self.grpSettings = QGroupBox(self.sidePanel)
         self.grpSettings.setObjectName(u"grpSettings")
         self.settingsLayout = QVBoxLayout(self.grpSettings)
@@ -183,21 +157,13 @@ class Ui_KanvasMainWindow(object):
         self.settingsLayout.setObjectName(u"settingsLayout")
         self.left_button_18 = QPushButton(self.grpSettings)
         self.left_button_18.setObjectName(u"left_button_18")
-
         self.settingsLayout.addWidget(self.left_button_18)
-
         self.left_button_19 = QPushButton(self.grpSettings)
         self.left_button_19.setObjectName(u"left_button_19")
-
         self.settingsLayout.addWidget(self.left_button_19)
-
-
         self.verticalLayout.addWidget(self.grpSettings)
-
         self.verticalSpacerBottom = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-
         self.verticalLayout.addItem(self.verticalSpacerBottom)
-
         self.labelVersion = QLabel(self.sidePanel)
         self.labelVersion.setObjectName(u"labelVersion")
         self.labelVersion.setAlignment(Qt.AlignCenter)
@@ -206,9 +172,7 @@ class Ui_KanvasMainWindow(object):
         self.labelVersion.setMaximumWidth(128)
         self.labelVersion.setMinimumHeight(31)
         self.labelVersion.setContentsMargins(0, 0, 0, 0)
-
         self.verticalLayout.addWidget(self.labelVersion)
-
         self.labelVersionNumber = QLabel(self.sidePanel)
         self.labelVersionNumber.setObjectName(u"labelVersionNumber")
         self.labelVersionNumber.setAlignment(Qt.AlignCenter)
@@ -217,23 +181,15 @@ class Ui_KanvasMainWindow(object):
         self.labelVersionNumber.setMaximumWidth(128)
         self.labelVersionNumber.setMinimumHeight(16)
         self.labelVersionNumber.setContentsMargins(0, 0, 0, 0)
-
         self.verticalLayout.addWidget(self.labelVersionNumber)
-
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-
         self.verticalLayout.addItem(self.verticalSpacer)
-
-
         self.horizontalLayout.addWidget(self.sidePanel)
-
         self.mainPanelLayout = QVBoxLayout()
         self.mainPanelLayout.setObjectName(u"mainPanelLayout")
         self.treeViewMain = QTreeView(self.centralwidget)
         self.treeViewMain.setObjectName(u"treeViewMain")
-
         self.mainPanelLayout.addWidget(self.treeViewMain)
-
         self.footerLayout = QHBoxLayout()
         self.footerLayout.setObjectName(u"footerLayout")
         self.down_button_1 = QPushButton(self.centralwidget)
@@ -244,64 +200,73 @@ class Ui_KanvasMainWindow(object):
         sizePolicy1.setHeightForWidth(self.down_button_1.sizePolicy().hasHeightForWidth())
         self.down_button_1.setSizePolicy(sizePolicy1)
         self.down_button_1.setMinimumSize(QSize(100, 30))
-
         self.footerLayout.addWidget(self.down_button_1)
-
         self.down_button_2 = QPushButton(self.centralwidget)
         self.down_button_2.setObjectName(u"down_button_2")
         sizePolicy1.setHeightForWidth(self.down_button_2.sizePolicy().hasHeightForWidth())
         self.down_button_2.setSizePolicy(sizePolicy1)
         self.down_button_2.setMinimumSize(QSize(100, 30))
-
         self.footerLayout.addWidget(self.down_button_2)
-
         self.down_button_3 = QPushButton(self.centralwidget)
         self.down_button_3.setObjectName(u"down_button_3")
         sizePolicy1.setHeightForWidth(self.down_button_3.sizePolicy().hasHeightForWidth())
         self.down_button_3.setSizePolicy(sizePolicy1)
         self.down_button_3.setMinimumSize(QSize(100, 30))
-
         self.footerLayout.addWidget(self.down_button_3)
-
-        self.down_button_4 = QPushButton(self.centralwidget)
-        self.down_button_4.setObjectName(u"down_button_4")
-        sizePolicy1.setHeightForWidth(self.down_button_4.sizePolicy().hasHeightForWidth())
-        self.down_button_4.setSizePolicy(sizePolicy1)
-        self.down_button_4.setMinimumSize(QSize(100, 30))
-
-        self.footerLayout.addWidget(self.down_button_4)
-
-        self.down_button_5 = QPushButton(self.centralwidget)
-        self.down_button_5.setObjectName(u"down_button_5")
-        sizePolicy1.setHeightForWidth(self.down_button_5.sizePolicy().hasHeightForWidth())
-        self.down_button_5.setSizePolicy(sizePolicy1)
-        self.down_button_5.setMinimumSize(QSize(100, 30))
-
-        self.footerLayout.addWidget(self.down_button_5)
-
+        self.down_button_8 = QPushButton(self.centralwidget)
+        self.down_button_8.setObjectName(u"down_button_8")
+        sizePolicy1.setHeightForWidth(self.down_button_8.sizePolicy().hasHeightForWidth())
+        self.down_button_8.setSizePolicy(sizePolicy1)
+        self.down_button_8.setMinimumSize(QSize(100, 30))
+        self.footerLayout.addWidget(self.down_button_8)
+        self.down_button_9 = QPushButton(self.centralwidget)
+        self.down_button_9.setObjectName(u"down_button_9")
+        sizePolicy1.setHeightForWidth(self.down_button_9.sizePolicy().hasHeightForWidth())
+        self.down_button_9.setSizePolicy(sizePolicy1)
+        self.down_button_9.setMinimumSize(QSize(100, 30))
+        self.footerLayout.addWidget(self.down_button_9)
+        # self.down_button_4 = QPushButton(self.centralwidget)  # Hidden: List Systems
+        # self.down_button_4.setObjectName(u"down_button_4")
+        # sizePolicy1.setHeightForWidth(self.down_button_4.sizePolicy().hasHeightForWidth())
+        # self.down_button_4.setSizePolicy(sizePolicy1)
+        # self.down_button_4.setMinimumSize(QSize(100, 30))
+        # self.footerLayout.addWidget(self.down_button_4)  # Hidden: List Systems
+        # self.down_button_5 = QPushButton(self.centralwidget)  # Hidden: List Users
+        # self.down_button_5.setObjectName(u"down_button_5")
+        # sizePolicy1.setHeightForWidth(self.down_button_5.sizePolicy().hasHeightForWidth())
+        # self.down_button_5.setSizePolicy(sizePolicy1)
+        # self.down_button_5.setMinimumSize(QSize(100, 30))
+        # self.footerLayout.addWidget(self.down_button_5)  # Hidden: List Users
         self.down_button_6 = QPushButton(self.centralwidget)
         self.down_button_6.setObjectName(u"down_button_6")
         sizePolicy1.setHeightForWidth(self.down_button_6.sizePolicy().hasHeightForWidth())
         self.down_button_6.setSizePolicy(sizePolicy1)
         self.down_button_6.setMinimumSize(QSize(100, 30))
-
         self.footerLayout.addWidget(self.down_button_6)
-
+        self.down_button_7 = QPushButton(self.centralwidget)
+        self.down_button_7.setObjectName(u"down_button_7")
+        sizePolicy1.setHeightForWidth(self.down_button_7.sizePolicy().hasHeightForWidth())
+        self.down_button_7.setSizePolicy(sizePolicy1)
+        self.down_button_7.setMinimumSize(QSize(100, 30))
+        self.footerLayout.addWidget(self.down_button_7)
+        self.more_button = QPushButton(self.centralwidget)
+        self.more_button.setObjectName(u"more_button")
+        sizePolicy1.setHeightForWidth(self.more_button.sizePolicy().hasHeightForWidth())
+        self.more_button.setSizePolicy(sizePolicy1)
+        self.more_button.setMinimumSize(QSize(100, 30))
+        self.more_button.setText("Quick Reference")
+        more_menu = QMenu(self.more_button)
+        more_menu.addAction("Windows - Event ID")
+        more_menu.addAction("Windows - LOLBAS")
+        self.more_button.setMenu(more_menu)
+        self.footerLayout.addWidget(self.more_button)
         self.labelFileStatus = QLabel(self.centralwidget)
         self.labelFileStatus.setObjectName(u"labelFileStatus")
-
         self.footerLayout.addWidget(self.labelFileStatus)
-
-
         self.mainPanelLayout.addLayout(self.footerLayout)
-
-
         self.horizontalLayout.addLayout(self.mainPanelLayout)
-
         KanvasMainWindow.setCentralWidget(self.centralwidget)
-
         self.retranslateUi(KanvasMainWindow)
-
         QMetaObject.connectSlotsByName(KanvasMainWindow)
     # setupUi
 
@@ -358,10 +323,12 @@ class Ui_KanvasMainWindow(object):
         self.left_button_4.setText(QCoreApplication.translate("KanvasMainWindow", u"ATTACK Summary", None))
         self.left_button_3.setText(QCoreApplication.translate("KanvasMainWindow", u"D3FEND Mapping", None))
         self.left_button_2.setText(QCoreApplication.translate("KanvasMainWindow", u"VERIS Reporting", None))
+        self.left_button_21.setText(QCoreApplication.translate("KanvasMainWindow", u"Flow Builder", None))
         self.labelSheet.setText(QCoreApplication.translate("KanvasMainWindow", u"Select Sheet", None))
         self.grpLookups.setTitle(QCoreApplication.translate("KanvasMainWindow", u"Lookups", None))
         self.left_button_9.setText(QCoreApplication.translate("KanvasMainWindow", u"IP Insights", None))
         self.left_button_11.setText(QCoreApplication.translate("KanvasMainWindow", u"Domain Insights", None))
+        self.left_button_22.setText(QCoreApplication.translate("KanvasMainWindow", u"Email Insights", None))
         self.left_button_12.setText(QCoreApplication.translate("KanvasMainWindow", u"File Insights", None))
         self.left_button_13.setText(QCoreApplication.translate("KanvasMainWindow", u"App-ID Insights", None))
         self.left_button_14.setText(QCoreApplication.translate("KanvasMainWindow", u"CVE Insights", None))
@@ -375,14 +342,19 @@ class Ui_KanvasMainWindow(object):
         self.left_button_19.setText(QCoreApplication.translate("KanvasMainWindow", u"Download Updates", None))
         self.labelVersion.setText(QCoreApplication.translate("KanvasMainWindow", u"K.a.n.v.a.s", None))
         self.labelVersion.setStyleSheet(QCoreApplication.translate("KanvasMainWindow", u"background-color: #E51448; color: white; text-align: center; font-family: Arial; font-size: 10pt; font-weight: normal;", None))
-        self.labelVersionNumber.setText(QCoreApplication.translate("KanvasMainWindow", u" Version 0.4.3", None))
+        self.labelVersionNumber.setText(QCoreApplication.translate("KanvasMainWindow", u" Version 0.4.4", None))
         self.labelVersionNumber.setStyleSheet(QCoreApplication.translate("KanvasMainWindow", u"color: white; text-align: center; font-family: Arial; font-size: 8pt; font-weight: normal;", None))
         self.down_button_1.setText(QCoreApplication.translate("KanvasMainWindow", u"Add New Entry", None))
         self.down_button_2.setText(QCoreApplication.translate("KanvasMainWindow", u"Delete Entry", None))
         self.down_button_3.setText(QCoreApplication.translate("KanvasMainWindow", u"Refresh Table", None))
-        self.down_button_4.setText(QCoreApplication.translate("KanvasMainWindow", u"List Systems", None))
-        self.down_button_5.setText(QCoreApplication.translate("KanvasMainWindow", u"List Users", None))
-        self.down_button_6.setText(QCoreApplication.translate("KanvasMainWindow", u"Sanitize", None))
+        # self.down_button_4.setText(QCoreApplication.translate("KanvasMainWindow", u"List Systems", None))  # Hidden: List Systems
+        # self.down_button_5.setText(QCoreApplication.translate("KanvasMainWindow", u"List Users", None))    # Hidden: List Users
+        self.down_button_6.setText(QCoreApplication.translate("KanvasMainWindow", u"Defang", None))
+        self.down_button_7.setText(QCoreApplication.translate("KanvasMainWindow", u"STIX Export", None))
+        self.down_button_8.setText(QCoreApplication.translate("KanvasMainWindow", u"Add EvidenceType", None))
+        self.down_button_9.setText(QCoreApplication.translate("KanvasMainWindow", u"Add System Type", None))
+        self.more_button.setText(QCoreApplication.translate("KanvasMainWindow", u"Quick Reference", None))
         self.labelFileStatus.setText(QCoreApplication.translate("KanvasMainWindow", u"File Path", None))
+        self.left_button_20.setText(QCoreApplication.translate("KanvasMainWindow", u"LLM Assistance", None))
     # retranslateUi
 
