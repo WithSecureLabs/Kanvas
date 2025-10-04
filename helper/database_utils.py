@@ -1,3 +1,4 @@
+# code reviewed 
 import sqlite3
 import logging
 
@@ -16,6 +17,7 @@ def create_table(db_path, table_name, table_schema):
         if conn:
             conn.close()
 
+
 def create_all_tables(db_path):
     create_table(db_path, "user_settings", """
         CREATE TABLE IF NOT EXISTS user_settings (
@@ -27,11 +29,13 @@ def create_all_tables(db_path):
             MISP_API_KEY TEXT,
             OpenCTI_API_KEY TEXT,
             urlscan_API_KEY TEXT,
-                 vulners_API_KEY TEXT,
-                 malpedia_API_KEY TEXT,
-                 URLhaus_API_KEY TEXT,
-                 IPQS_API_KEY TEXT,
-                 HudonRock_API_KEY TEXT
+            vulners_API_KEY TEXT,
+            malpedia_API_KEY TEXT,
+            URLhaus_API_KEY TEXT,
+            IPQS_API_KEY TEXT,
+            HudonRock_API_KEY TEXT,
+            ANTHROPIC_API_KEY TEXT,
+            HIBP_API_KEY TEXT
         )
     """)
 
@@ -54,23 +58,13 @@ def create_all_tables(db_path):
         )
     """)
 
-    create_table(db_path, "mapping", """
-        CREATE TABLE IF NOT EXISTS mapping (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            stage TEXT,
-            technique TEXT,
-            notes TEXT,
-            file_name TEXT,
-            target_system TEXT
-        )
-    """)
 
     create_table(db_path, "ms_portals", """
         CREATE TABLE IF NOT EXISTS ms_portals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_name TEXT,
             portal_name TEXT,
-                 source_file TEXT,
+            source_file TEXT,
             primary_url TEXT
         )
     """)
@@ -80,7 +74,7 @@ def create_all_tables(db_path):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_name TEXT,
             portal_name TEXT,
-                 source_file TEXT,
+            source_file TEXT,
             primary_url TEXT
         )
     """)
@@ -100,9 +94,9 @@ def create_all_tables(db_path):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             AppId TEXT,
             AppDisplayName TEXT,
-                 AppOwnerOrganizationId TEXT,
-                 Source TEXT,
-                 FileName TEXT
+            AppOwnerOrganizationId TEXT,
+            Source TEXT,
+            FileName TEXT
         )
     """)
 
@@ -119,40 +113,70 @@ def create_all_tables(db_path):
         CREATE TABLE IF NOT EXISTS mitre_tactics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
-            description TEXT, url TEXT, created TEXT
+            description TEXT,
+            url TEXT,
+            created TEXT,
             modified TEXT
         )
     """)
 
+    create_table(db_path, "system_types", """
+        CREATE TABLE IF NOT EXISTS system_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            display_name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            icon_filename TEXT,
+            fallback_color TEXT,
+            description TEXT,
+            is_active BOOLEAN DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    create_table(db_path, "icon_mappings", """
+        CREATE TABLE IF NOT EXISTS icon_mappings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            system_type_id INTEGER REFERENCES system_types(id),
+            icon_filename TEXT NOT NULL,
+            icon_type TEXT DEFAULT 'primary',
+            color_code TEXT,
+            is_active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     create_table(db_path, "defend", """
-       CREATE TABLE IF NOT EXISTS defend (
-        query_def_tech_label TEXT,
-        top_def_tech_label TEXT,
-        def_tactic_label TEXT,
-        def_tactic_rel_label TEXT,
-        def_tech_label TEXT,
-        def_artifact_rel_label TEXT,
-        def_artifact_label TEXT,
-        off_artifact_label TEXT,
-        off_artifact_rel_label TEXT,
-        off_tech_label TEXT,
-        off_tech_id TEXT,
-        off_tech_parent_label TEXT,
-        off_tech_parent_is_toplevel TEXT,
-        off_tactic_rel_label TEXT,
-        off_tactic_label TEXT,
-        def_tactic TEXT,
-        def_tactic_rel TEXT,
-        def_tech TEXT,
-        def_artifact_rel TEXT,
-        def_artifact TEXT,
-        off_artifact TEXT,
-        off_artifact_rel TEXT,
-        off_tech TEXT,
-        off_tech_parent TEXT,
-        off_tactic_rel TEXT,
-        off_tactic TEXT
-    )
+        CREATE TABLE IF NOT EXISTS defend (
+            query_def_tech_label TEXT,
+            top_def_tech_label TEXT,
+            def_tactic_label TEXT,
+            def_tactic_rel_label TEXT,
+            def_tech_label TEXT,
+            def_artifact_rel_label TEXT,
+            def_artifact_label TEXT,
+            off_artifact_label TEXT,
+            off_artifact_rel_label TEXT,
+            off_tech_label TEXT,
+            off_tech_id TEXT,
+            off_tech_parent_label TEXT,
+            off_tech_parent_is_toplevel TEXT,
+            off_tactic_rel_label TEXT,
+            off_tactic_label TEXT,
+            def_tactic TEXT,
+            def_tactic_rel TEXT,
+            def_tech TEXT,
+            def_artifact_rel TEXT,
+            def_artifact TEXT,
+            off_artifact TEXT,
+            off_artifact_rel TEXT,
+            off_tech TEXT,
+            off_tech_parent TEXT,
+            off_tactic_rel TEXT,
+            off_tactic TEXT
+        )
     """)
 
     create_table(db_path, "cisa_ran_exploit", """
