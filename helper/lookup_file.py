@@ -1,3 +1,4 @@
+# code reviewed 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QPushButton, QTextEdit, QMessageBox
@@ -20,19 +21,27 @@ def open_hash_lookup_window(parent, db_path):
         _active_window.raise_()
         _active_window.activateWindow()
         return _active_window
-    hash_window = QWidget(parent)  
+    hash_window = QWidget(parent.window)
     hash_window.setWindowTitle("File Hash Lookup")
     hash_window.resize(720, 600)
-    hash_window.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
+    hash_window.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
     main_layout = QVBoxLayout(hash_window)
     main_layout.setSpacing(10)
     main_layout.setContentsMargins(15, 15, 15, 15)
-    input_label = QLabel("Enter Hash:")
+    input_layout = QHBoxLayout()
+    input_label = QLabel("File Hash:")
     input_label.setFont(QFont("Arial", 12))
+    input_layout.addWidget(input_label)
     hash_entry = QLineEdit()
     hash_entry.setFont(QFont("Arial", 10))
-    hash_entry.setMinimumWidth(550)
+    hash_entry.setMinimumWidth(300)
     hash_entry.setPlaceholderText("MD5, SHA-1, SHA-256")
+    input_layout.addWidget(hash_entry)
+    submit_button = QPushButton("Search")
+    submit_button.setFixedWidth(100)
+    submit_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    input_layout.addWidget(submit_button)
+    main_layout.addLayout(input_layout)
     buttons_layout = QHBoxLayout()
     button_names = ["VT", "OTX", "Joesandbox", "Any.Run", "Talos", "HybridAnalysis","Cymru" , "ThreatFox"]
     button_style = """
@@ -53,14 +62,13 @@ def open_hash_lookup_window(parent, db_path):
     url_templates = {
         "VT": "https://www.virustotal.com/gui/file/{hash}",
         "OTX": "https://otx.alienvault.com/indicator/file/{hash}",
-        "Joesandbox": "https://www.joesandbox.com/",  
+        "Joesandbox": "https://www.joesandbox.com/",
         "Any.Run": "https://app.any.run/submissions",
         "Talos": "https://talosintelligence.com/",
         "HybridAnalysis": "https://www.hybrid-analysis.com/",
         "Cymru": "https://hash.cymru.com/",
         "ThreatFox": "https://threatfox.abuse.ch/browse/"
     }
-    
     def create_button_click_handler(name, url_template):
         def button_click_handler():
             if "{hash}" in url_template:
@@ -84,20 +92,17 @@ def open_hash_lookup_window(parent, db_path):
     result_text = QTextEdit()
     result_text.setFont(QFont("Arial", 10))
     result_text.setReadOnly(True)
-    submit_button = QPushButton("Submit")
-    submit_button.setFixedWidth(120)
-    submit_button.setStyleSheet("background-color: #4CAF50; color: white;")
-    main_layout.addWidget(input_label)
-    main_layout.addWidget(hash_entry)
-    main_layout.addLayout(buttons_layout) 
+    main_layout.addLayout(buttons_layout)
     main_layout.addWidget(results_label)
-    main_layout.addWidget(result_text, 1) 
+    main_layout.addWidget(result_text, 1)
     button_layout = QHBoxLayout()
+    close_button = QPushButton("Close")
+    close_button.setFixedWidth(100)
+    close_button.setStyleSheet("background-color: #d3d3d3; color: black;")
     button_layout.addStretch()
-    button_layout.addWidget(submit_button)
+    button_layout.addWidget(close_button)
     button_layout.addStretch()
     main_layout.addLayout(button_layout)
-    
     def get_vt_api_key():
         try:
             with sqlite3.connect(db_path) as conn:
@@ -113,7 +118,6 @@ def open_hash_lookup_window(parent, db_path):
             logger.error(f"Database error while retrieving API key: {e}")
             QMessageBox.critical(hash_window, "Error", f"Failed to retrieve API key: {e}")
             return None
-    
     def submit_hash():
         hash_value = hash_entry.text().strip()
         if not hash_value:
@@ -156,13 +160,13 @@ def open_hash_lookup_window(parent, db_path):
             submit_button.setEnabled(True)
             submit_button.setText("Submit")
             hash_entry.setEnabled(True)
-            
     def handle_close_event(event):
         global _active_window
         _active_window = None
         event.accept()
     submit_button.clicked.connect(submit_hash)
     hash_entry.returnPressed.connect(submit_hash)
+    close_button.clicked.connect(hash_window.close)
     hash_window.closeEvent = handle_close_event
     _active_window = hash_window
     hash_window.show()
