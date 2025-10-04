@@ -1,42 +1,29 @@
+# code reviewed 
 import sqlite3
 import requests
 import shodan
-import threading
 import logging
+import webbrowser
+from datetime import datetime
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-    QTextEdit, QScrollArea, QMessageBox, QProgressBar
+    QTextEdit, QMessageBox
 )
-from PySide6.QtCore import Qt, Signal, QObject
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QColor, QTextCharFormat, QTextCursor
-from datetime import datetime
-import webbrowser
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
 
 IP_LOOKUP_WINDOW = None
-class WorkerSignals(QObject):
-    finished = Signal(str)
-    progress = Signal(int)
-    error = Signal(str)
 
-def fetch_ip_location_threaded(ip_address, db_path, get_shodan_api_key, get_vt_api_key, signals):
+def fetch_ip_data_synchronous(ip_address, db_path, get_shodan_api_key, get_vt_api_key):
     try:
         tor_result = []
         shodan_result = []
         ip_api_result = []
         vt_result = []
-        signals.progress.emit(5)
-        logger.info("Initial progress sent")
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        report_header = [
-            f"╔═══════════════════════════════════════════════════",
-            f"║ IP LOOKUP REPORT: {ip_address}",
-            f"║ Generated: {current_time}",
-            f"╚═══════════════════════════════════════════════════\n"
-        ]
-        signals.progress.emit(10)
+        logger.info("Starting IP lookup")
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
@@ -56,7 +43,6 @@ def fetch_ip_location_threaded(ip_address, db_path, get_shodan_api_key, get_vt_a
         except sqlite3.Error as e:
             logger.error(f"TOR database error: {e}")
             tor_result = [f"=== Detailes found on TOR DB ===\n", f"Database error: {e}\n"]
-        signals.progress.emit(25)
         try:
             response = requests.get(f"http://ip-api.com/json/{ip_address}", timeout=10)
             if response.status_code == 200:
@@ -84,7 +70,6 @@ def fetch_ip_location_threaded(ip_address, db_path, get_shodan_api_key, get_vt_a
         except Exception as e:
             logger.error(f"IP-API unexpected error: {e}")
             ip_api_result = ["\n=== IP-API Data === \n", f"Error: {e}"]
-        signals.progress.emit(40)
         shodan_api_key = get_shodan_api_key()
         if shodan_api_key:
             try:
@@ -119,7 +104,6 @@ def fetch_ip_location_threaded(ip_address, db_path, get_shodan_api_key, get_vt_a
                 shodan_result = [f"\n=== Shodan Data ===\n", f"Error: Unexpected Error: {e}"]
         else:
             shodan_result = ["\n=== Shodan Data ===\n", "Error: Shodan API key not available"]
-        signals.progress.emit(70)
         vt_api_key = get_vt_api_key()
         if vt_api_key:
             try:
@@ -161,7 +145,6 @@ def fetch_ip_location_threaded(ip_address, db_path, get_shodan_api_key, get_vt_a
                         else:
                             logger.info(f"LOW RISK IP: {ip_address} - Detection Rate: {detection_rate:.1f}%")
                             vt_result.append(f"  ✓ LOW RISK - Detection Rate: {detection_rate:.1f}%")
-                    signals.progress.emit(80)
                     vt_result.append("\nAssociated Domains:")
                     resolutions = data.get("last_dns_records", [])
                     if resolutions:
@@ -176,7 +159,6 @@ def fetch_ip_location_threaded(ip_address, db_path, get_shodan_api_key, get_vt_a
                                 break
                     else:
                         vt_result.append("  • No associated domains found.")
-                    signals.progress.emit(85)
                     try:
                         comments_url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip_address}/comments?limit=10"
                         comments_headers = {
@@ -224,50 +206,27 @@ def fetch_ip_location_threaded(ip_address, db_path, get_shodan_api_key, get_vt_a
         else:
             logger.warning("VirusTotal API key not available")
             vt_result = ["\n=== VirusTotal Data ===\n", "Error: VirusTotal API key not available"]
-        footer = [
-            "\n" + "─" * 60,
-            "DISCLAIMER: This information is provided for security research purposes only.",
-            "Always verify data through multiple sources before taking action.",
-            "─" * 60
-        ]
-        signals.progress.emit(95)
-        combined_result = "\n".join(report_header + tor_result + shodan_result + ip_api_result + vt_result + footer)
-        signals.progress.emit(100)
-        signals.finished.emit(combined_result)
+        combined_result = "\n".join(tor_result + shodan_result + ip_api_result + vt_result)
+        return combined_result
     except Exception as e:
         logger.error(f"Unexpected error during IP lookup for {ip_address}: {e}")
-        signals.error.emit(f"Unexpected error: {e}")
+        return f"Unexpected error: {e}"
 
 def fetch_ip_location(ip_address, db_path, get_shodan_api_key, get_vt_api_key, result_text, submit_button):
     submit_button.setEnabled(False)
     submit_button.setText("Searching...")
     result_text.clear()
     result_text.setPlainText("Starting search...")
-    signals = WorkerSignals()
-    
-    def on_progress(value):
-        result_text.setPlainText(f"Searching... {value}% complete")
-    
-    def on_finished(result):
+    try:
+        result = fetch_ip_data_synchronous(ip_address, db_path, get_shodan_api_key, get_vt_api_key)
         result_text.setPlainText(result)
         highlight_headers(result_text)
+    except Exception as e:
+        logger.error(f"Error in fetch_ip_location: {e}")
+        result_text.setPlainText(f"Error during lookup: {e}")
+    finally:
         submit_button.setEnabled(True)
         submit_button.setText("Submit")
-    
-    def on_error(error_msg):
-        result_text.setPlainText(f"Error during lookup: {error_msg}")
-        submit_button.setEnabled(True)
-        submit_button.setText("Submit")
-        
-    signals.progress.connect(on_progress)
-    signals.finished.connect(on_finished)
-    signals.error.connect(on_error)
-    thread = threading.Thread(
-        target=fetch_ip_location_threaded,
-        args=(ip_address, db_path, get_shodan_api_key, get_vt_api_key, signals)
-    )
-    thread.daemon = True
-    thread.start()
 
 def highlight_headers(text_edit):
     try:
@@ -335,13 +294,12 @@ def open_ip_lookup_window(parent, db_path):
         IP_LOOKUP_WINDOW.activateWindow()
         IP_LOOKUP_WINDOW.raise_()
         return
-    ip_window = QWidget(parent)
+    ip_window = QWidget(parent.window)
     ip_window.setWindowTitle("IP Lookup")
     ip_window.resize(720, 600)
-    ip_window.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
+    ip_window.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
     IP_LOOKUP_WINDOW = ip_window
     original_close_event = ip_window.closeEvent
-    
     def custom_close_event(event):
         global IP_LOOKUP_WINDOW
         IP_LOOKUP_WINDOW = None
@@ -351,14 +309,20 @@ def open_ip_lookup_window(parent, db_path):
     main_layout = QVBoxLayout(ip_window)
     main_layout.setSpacing(10)
     main_layout.setContentsMargins(15, 15, 15, 15)
-    input_label = QLabel("Enter IP Address:")
+    input_layout = QHBoxLayout()
+    input_label = QLabel("IP Address:")
     input_label.setFont(QFont("Arial", 12))
-    main_layout.addWidget(input_label)
+    input_layout.addWidget(input_label)
     ip_entry = QLineEdit()
     ip_entry.setFont(QFont("Arial", 10))
     ip_entry.setPlaceholderText("e.g., 8.8.8.8")
     ip_entry.setMinimumWidth(300)
-    main_layout.addWidget(ip_entry)
+    input_layout.addWidget(ip_entry)
+    submit_button = QPushButton("Search")
+    submit_button.setFixedWidth(100)
+    submit_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    input_layout.addWidget(submit_button)
+    main_layout.addLayout(input_layout)
     buttons_layout = QHBoxLayout()
     button_names = ["VT", "OTX", "DSheild", "Talos", "Spamhaus", "Criminal-IP", "Shoden", "AbuseIPDB", "Pulsedive"]
     button_style = """
@@ -387,7 +351,6 @@ def open_ip_lookup_window(parent, db_path):
         "AbuseIPDB": "https://www.abuseipdb.com/check/{ip}",
         "Pulsedive": "https://pulsedive.com/indicator/{ip}"
     }
-    
     def create_button_click_handler(url_template):
         def button_click_handler():
             ip = ip_entry.text().strip()
@@ -409,28 +372,25 @@ def open_ip_lookup_window(parent, db_path):
     result_text = QTextEdit()
     result_text.setFont(QFont("Arial", 10))
     result_text.setReadOnly(True)
-    main_layout.addWidget(result_text, 1)  
+    main_layout.addWidget(result_text, 1)
     button_layout = QHBoxLayout()
-    submit_button = QPushButton("Submit")
-    submit_button.setFixedWidth(100)
-    submit_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    close_button = QPushButton("Close")
+    close_button.setFixedWidth(100)
+    close_button.setStyleSheet("background-color: #d3d3d3; color: black;")
     button_layout.addStretch()
-    button_layout.addWidget(submit_button)
+    button_layout.addWidget(close_button)
     button_layout.addStretch()
     main_layout.addLayout(button_layout)
-    
     def get_shodan_api_key():
         key = get_api_key(db_path, "SHODEN_API_KEY")
         if key is None:
             pass
         return key
-    
     def get_vt_api_key():
         key = get_api_key(db_path, "VT_API_KEY")
         if key is None:
             pass
         return key
-    
     def on_submit():
         ip_address = ip_entry.text().strip()
         if not ip_address:
@@ -460,4 +420,5 @@ def open_ip_lookup_window(parent, db_path):
         )
     submit_button.clicked.connect(on_submit)
     ip_entry.returnPressed.connect(on_submit)
+    close_button.clicked.connect(ip_window.close)
     ip_window.show()
