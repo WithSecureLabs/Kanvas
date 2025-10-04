@@ -46,8 +46,6 @@ SOD Spreadsheets/
     └── SystemType
 ```
 
-
-
 ### 👀 **Threat Intelligence Lookups**
 
 - **IP Reputation**: IP reputation, geolocation, open ports, known vulnerabilities, and more using various API integrations.
@@ -68,10 +66,13 @@ SOD Spreadsheets/
 
 ### 📑 **Knowledge Management**
 
-- 📌**Bookmarks**: Offers a curated list of security tool, an up-to-date list of Microsoft portal URLs, and the ability to create custom investigation-specific bookmarks.
+- **Bookmarks**: Offers a curated list of security tool, an up-to-date list of Microsoft portal URLs, and the ability to create custom investigation-specific bookmarks.
+- 📌**Markdown Editor**: Provides an interface to create and update Markdown documents—ideal for note-taking or loading investigative playbooks during investigations.
+- 📌**LLM Assaitance**: This taps into LLM APIs like OpenAI / Anthropic and you can save your own predefined prompts.
 - **Event ID Reference**: Consolidates Windows Event IDs in one place, organized by categories like persistence, lateral movement, and more—making it easy to cross-reference during investigations.
 - **Entra ID Reference**: Provides a searchable list of known and malicious Microsoft Entra ID AppIDs—useful for investigating Business Email Compromise (BEC) cases.
-- 📌**Markdown Editor**: Provides an interface to create and update Markdown documents—ideal for note-taking or loading investigative playbooks during investigations.
+- **Living Off the Land Binaries**: Provides a searchable list of known Microsoft living-off-the-land (LOLBAS) binaries that threat actors have abused.
+- **Microsoft Azure Portals**: Provides a searchable list of constantly changing Microsoft Azure / Entra URLs, useful when responding to Azure cloud incidents.
   
 > [!TIP]
 > For easy access, keep all Markdown files in the `markdown_files` folder.
@@ -87,8 +88,13 @@ SOD Spreadsheets/
 
 2. **Create Virtual Environment**
    ```bash
+   # On Windows 
    python3 -m venv venv
    venv\Scripts\activate
+
+   # On MacOs / Linux
+   python3 -m venv venv
+   source venv/bin/activate
    ```
 
 3. **Install Dependencies**
