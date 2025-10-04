@@ -1,3 +1,4 @@
+# code reviewed 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, 
     QScrollArea, QMessageBox, QSizePolicy, QPushButton,
@@ -35,7 +36,8 @@ def fetch_group_names(db_path, parent_window=None):
             cursor = conn.cursor()
             cursor.execute("SELECT DISTINCT group_name FROM bookmarks ORDER BY group_name")
             groups = [row[0] for row in cursor.fetchall() if row[0]]
-            logger.info(f"Retrieved {len(groups)} groups: {groups}")
+            groups = [group for group in groups if group != "Microsoft Portals via msportals.io"]
+            logger.info(f"Retrieved {len(groups)} groups (excluding Microsoft Portals): {groups}")
             return groups
     except sqlite3.Error as e:
         logger.error(f"Failed to fetch group names: {e}")
@@ -64,8 +66,19 @@ def display_bookmarks_kb(parent, db_path):
     top_layout.addWidget(group_label)
     dropdown_width = int(65 * 4.2)
     group_dropdown = QComboBox()
-    group_dropdown.addItems(group_names)
+    sorted_group_names = []
+    if "Personal" in group_names:
+        sorted_group_names.append("Personal")
+        for group in group_names:
+            if group != "Personal":
+                sorted_group_names.append(group)
+    else:
+        sorted_group_names = group_names
+    group_dropdown.addItems(sorted_group_names)
     group_dropdown.setFixedWidth(dropdown_width)
+    if "Personal" in sorted_group_names:
+        personal_index = sorted_group_names.index("Personal")
+        group_dropdown.setCurrentIndex(personal_index)
     top_layout.addWidget(group_dropdown)
     top_layout.addStretch()
     add_btn = QPushButton("Add")
@@ -89,7 +102,6 @@ def display_bookmarks_kb(parent, db_path):
     
     def display_bookmarks(selected_group):
         nonlocal current_bookmarks
-        # Clear existing content
         while content_layout.count():
             child = content_layout.takeAt(0)
             if child.widget():
@@ -310,8 +322,11 @@ def display_bookmarks_kb(parent, db_path):
     footer_layout.addWidget(link_label)
     footer_layout.addStretch()
     main_layout.addWidget(footer_frame)
-    if group_names:
-        display_bookmarks(group_names[0])
+    if sorted_group_names:
+        if "Personal" in sorted_group_names:
+            display_bookmarks("Personal")
+        else:
+            display_bookmarks(sorted_group_names[0])
     else:
         display_bookmarks("")
     parent.bookmarks_window.show()
