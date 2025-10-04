@@ -1,3 +1,4 @@
+# code reviewed 
 from PySide6.QtWidgets import (
     QWidget, QLabel, QLineEdit, QTextEdit, QPushButton,
     QVBoxLayout, QHBoxLayout, QScrollArea, QMessageBox
@@ -11,21 +12,31 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
 
 def open_ransomware_kb_window(parent_window):
-    kb_window = QWidget(parent_window)
+    kb_window = QWidget(parent_window.window)  # Use parent_window.window like Event ID window
     kb_window.setWindowTitle("Ransomware Victim Lookups")
     kb_window.resize(720, 600)  
-    kb_window.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
+    kb_window.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
     main_layout = QVBoxLayout(kb_window)
     main_layout.setSpacing(10)
     main_layout.setContentsMargins(15, 15, 15, 15)
-    input_label = QLabel("Enter Victim Name:")
+    
+    input_layout = QHBoxLayout()
+    input_label = QLabel("Victim Name:")
     input_label.setStyleSheet("font-size: 12pt;")
-    main_layout.addWidget(input_label)
+    input_layout.addWidget(input_label)
+    
     victim_entry = QLineEdit()
     victim_entry.setPlaceholderText("Enter company or organization name")
     victim_entry.setStyleSheet("font-size: 10pt;")
-    victim_entry.setMinimumWidth(550)  
-    main_layout.addWidget(victim_entry)
+    victim_entry.setMinimumWidth(300)
+    input_layout.addWidget(victim_entry)
+    
+    search_button = QPushButton("Search")
+    search_button.setFixedWidth(100)
+    search_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    input_layout.addWidget(search_button)
+    
+    main_layout.addLayout(input_layout)
     results_label = QLabel("Results:")
     results_label.setStyleSheet("font-size: 12pt;")
     results_label.setContentsMargins(0, 10, 0, 5)
@@ -33,21 +44,16 @@ def open_ransomware_kb_window(parent_window):
     result_text = QTextEdit()
     result_text.setStyleSheet("font-size: 10pt;")
     result_text.setReadOnly(True)  
-    main_layout.addWidget(result_text, 1)  
-    button_frame = QWidget()
-    button_layout = QHBoxLayout(button_frame)
-    button_layout.setContentsMargins(0, 10, 0, 0)
-    search_button = QPushButton("Search")
-    search_button.setFixedWidth(100)
-    search_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    main_layout.addWidget(result_text, 1)
+    
+    button_layout = QHBoxLayout()
     close_button = QPushButton("Close")
     close_button.setFixedWidth(100)
+    close_button.setStyleSheet("background-color: #d3d3d3; color: black;")
     button_layout.addStretch()
-    button_layout.addWidget(search_button)
-    button_layout.addSpacing(20)
     button_layout.addWidget(close_button)
     button_layout.addStretch()
-    main_layout.addWidget(button_frame)
+    main_layout.addLayout(button_layout)
     
     def search_victim():
         victim_user = victim_entry.text().strip()
