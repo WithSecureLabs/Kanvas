@@ -1,19 +1,19 @@
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QTextEdit, QMessageBox, QApplication
-)
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QColor, QTextCharFormat, QTextCursor
+# code reviewed 
+import sqlite3
 import requests
 import whois
-from datetime import datetime
-from urllib.parse import urlparse
-from functools import lru_cache
-import concurrent.futures
 import logging
 import socket
 import webbrowser
-import sqlite3
+from datetime import datetime
+from urllib.parse import urlparse
+from functools import lru_cache
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QTextEdit, QMessageBox
+)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QColor, QTextCharFormat, QTextCursor
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
@@ -39,9 +39,9 @@ def open_domain_lookup_window(parent_window, db_path):
             return _active_domain_window
         else:
             _active_domain_window = None
-    domain_window = QWidget(parent_window)  
+    domain_window = QWidget(parent_window.window)
     domain_window.setWindowTitle("Domain Lookup")
-    domain_window.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+    domain_window.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
     _active_domain_window = domain_window
     original_close_event = domain_window.closeEvent
     def custom_close_event(event):
@@ -49,24 +49,30 @@ def open_domain_lookup_window(parent_window, db_path):
         _active_domain_window = None
         if original_close_event:
             original_close_event(event)
-        event.accept()  
+        event.accept()
     domain_window.closeEvent = custom_close_event
     base_width = 600
     base_height = 500
     window_width = int(base_width * 1.2)
     window_height = int(base_height * 1.2)
     domain_window.resize(window_width, window_height)
-    domain_window.setFixedSize(window_width, window_height)  
+    domain_window.setFixedSize(window_width, window_height)
     main_layout = QVBoxLayout(domain_window)
     main_layout.setSpacing(10)
     main_layout.setContentsMargins(15, 15, 15, 15)
-    input_label = QLabel("Enter Domain or URL:")
+    input_layout = QHBoxLayout()
+    input_label = QLabel("Domain or URL:")
     input_label.setFont(QFont("Arial", 12))
-    main_layout.addWidget(input_label)
+    input_layout.addWidget(input_label)
     domain_entry = QLineEdit()
     domain_entry.setFont(QFont("Arial", 10))
-    domain_entry.setMinimumWidth(500)
-    main_layout.addWidget(domain_entry)
+    domain_entry.setMinimumWidth(300)
+    input_layout.addWidget(domain_entry)
+    submit_button = QPushButton("Search")
+    submit_button.setFixedWidth(100)
+    submit_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    input_layout.addWidget(submit_button)
+    main_layout.addLayout(input_layout)
     buttons_layout = QHBoxLayout()
     button_names = ["VT", "OTX", "Talos", "Criminal-IP", "Pulsedive", "Shodan"]
     button_style = """
@@ -125,18 +131,16 @@ def open_domain_lookup_window(parent_window, db_path):
     result_text.setFont(QFont("Arial", 10))
     result_text.setReadOnly(True)
     result_text.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
-    main_layout.addWidget(result_text, 1)  
+    main_layout.addWidget(result_text, 1)
     button_layout = QHBoxLayout()
-    button_layout.setContentsMargins(0, 10, 0, 0)
-    submit_button = QPushButton("Submit")
-    submit_button.setFixedWidth(100)
-    submit_button.setStyleSheet("background-color: #4CAF50; color: white;")
+    close_button = QPushButton("Close")
+    close_button.setFixedWidth(100)
+    close_button.setStyleSheet("background-color: #d3d3d3; color: black;")
     button_layout.addStretch()
-    button_layout.addWidget(submit_button)
+    button_layout.addWidget(close_button)
     button_layout.addStretch()
     main_layout.addLayout(button_layout)
-    
-    @lru_cache(maxsize=8) 
+    @lru_cache(maxsize=8)
     def get_vt_api_key():
         try:
             conn = sqlite3.connect(db_path)
@@ -153,16 +157,15 @@ def open_domain_lookup_window(parent_window, db_path):
         except Exception as e:
             logger.error(f"Error fetching VT API key: {e}")
             return ""
-    
     def apply_text_formatting(result_text_widget, text):
         result_text_widget.clear()
         format_keyword_highlight = QTextCharFormat()
-        format_keyword_highlight.setBackground(QColor(255, 0, 0))  
-        format_keyword_highlight.setForeground(QColor(255, 255, 255))  
+        format_keyword_highlight.setBackground(QColor(255, 0, 0))
+        format_keyword_highlight.setForeground(QColor(255, 255, 255))
         format_keyword_highlight.setFont(QFont("Arial", 10, QFont.Bold))
         cursor = result_text_widget.textCursor()
         lines = text.split('\n')
-        cursor.beginEditBlock()  
+        cursor.beginEditBlock()
         highlight_keywords = ["Malicious", "Categories", "Associated IPs"]
         for i, line in enumerate(lines):
             if i > 0:
@@ -190,10 +193,9 @@ def open_domain_lookup_window(parent_window, db_path):
                         break
                 if not keyword_match:
                     cursor.insertText(line, _FORMAT_NORMAL)
-        cursor.endEditBlock() 
+        cursor.endEditBlock()
         cursor.movePosition(QTextCursor.Start)
         result_text_widget.setTextCursor(cursor)
-    
     def fetch_virustotal_data(domain, api_key):
         vt_results = []
         vt_header = f"=== VirusTotal Results for Domain: {domain} ==="
@@ -233,7 +235,6 @@ def open_domain_lookup_window(parent_window, db_path):
             logger.error(f"Exception during VirusTotal API request for {domain}: {str(e)}")
             vt_results.append(f"{vt_header}\nError: {e}")
         return vt_results
-    
     def fetch_whois_data(domain):
         whois_results = []
         whois_header = "=== WHOIS Information ==="
@@ -260,12 +261,12 @@ def open_domain_lookup_window(parent_window, db_path):
                 if whois_data.name_servers:
                     name_servers = whois_data.name_servers
                     if isinstance(name_servers, list):
-                        name_servers = ', '.join(name_servers[:3])  
+                        name_servers = ', '.join(name_servers[:3])
                     whois_results.append(f"Name Servers: {name_servers}")
                 if whois_data.status:
                     status = whois_data.status
                     if isinstance(status, list):
-                        status = ', '.join(status[:2])  
+                        status = ', '.join(status[:2])
                     whois_results.append(f"Status: {status}")
             else:
                 whois_results.append("Creation Date: Not available")
@@ -277,12 +278,10 @@ def open_domain_lookup_window(parent_window, db_path):
         finally:
             socket.setdefaulttimeout(None)
         return whois_results
-    
     def fetch_domain_info():
         submit_button.setText("Searching...")
         submit_button.setEnabled(False)
         domain_entry.setEnabled(False)
-        QApplication.processEvents()  
         domain_or_url = domain_entry.text().strip()
         if not domain_or_url:
             QMessageBox.warning(domain_window, "Warning", "Please enter a domain or URL.")
@@ -306,20 +305,23 @@ def open_domain_lookup_window(parent_window, db_path):
             domain_entry.setEnabled(True)
             return
         all_results = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        try:
             vt_api_key = get_vt_api_key()
-            vt_future = executor.submit(fetch_virustotal_data, domain, vt_api_key)
-            whois_future = executor.submit(fetch_whois_data, domain)
-            vt_results = vt_future.result()
+            vt_results = fetch_virustotal_data(domain, vt_api_key)
             all_results.extend(vt_results)
-            whois_results = whois_future.result()
+            whois_results = fetch_whois_data(domain)
             all_results.extend(whois_results)
-        full_text = "\n".join(all_results)
-        apply_text_formatting(result_text, full_text)
-        submit_button.setText("Submit")
-        submit_button.setEnabled(True)
-        domain_entry.setEnabled(True)
+            full_text = "\n".join(all_results)
+            apply_text_formatting(result_text, full_text)
+        except Exception as e:
+            logger.error(f"Error during domain lookup: {e}")
+            result_text.setText(f"Error during domain lookup: {e}")
+        finally:
+            submit_button.setText("Submit")
+            submit_button.setEnabled(True)
+            domain_entry.setEnabled(True)
     submit_button.clicked.connect(fetch_domain_info)
-    domain_entry.returnPressed.connect(fetch_domain_info)  
+    domain_entry.returnPressed.connect(fetch_domain_info)
+    close_button.clicked.connect(domain_window.close)
     domain_window.show()
     return domain_window
