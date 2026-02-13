@@ -1,67 +1,137 @@
-# code reviewed 
-import sqlite3
-import os
+# system_type.py: system type and evidence type management for Kanvas. SystemTypeManager
+# loads and caches system types (Attacker, Server, Gateway, Client, OT, etc.) from SQLite,
+# provides icons and fallback colors for timeline/network views. EvidenceTypeManager handles
+# evidence type CRUD and add-dialog. IconManager loads image icons or generates fallback circles.
+# Revised on 01/02/2026 by Jinto Antony
+
 import logging
-import numpy as np
+import sqlite3
+import yaml
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.patches import Circle
-from typing import Dict, List, Tuple, Optional, Any
-from datetime import datetime
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QWidget,
+)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
+from helper import styles
+
+logger = logging.getLogger(__name__)
+
+SYSTEM_TYPES_YAML_PATH = Path(__file__).resolve().parent / "system_types.yaml"
+
+
+def _load_system_types_from_yaml() -> List[Dict[str, Any]]:
+    """Load default system types from helper/system_types.yaml."""
+    try:
+        with open(SYSTEM_TYPES_YAML_PATH, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        if data and "default_system_types" in data:
+            return data["default_system_types"]
+    except (yaml.YAMLError, OSError) as e:
+        logger.warning("Could not load system_types.yaml: %s", e)
+    return []
+
+
+def load_icon_mapping_from_db(db_path: str) -> Dict[str, str]:
+    """Load system type name -> icon_filename mapping from database for report generation."""
+    mapping = {}
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT name, icon_filename FROM system_types WHERE is_active = 1 AND icon_filename IS NOT NULL AND icon_filename != ''"
+        )
+        for row in cursor.fetchall():
+            name, icon_file = row[0], row[1]
+            if name and icon_file:
+                mapping[name.lower().strip()] = icon_file.strip()
+                mapping[name.strip()] = icon_file.strip()
+        conn.close()
+    except sqlite3.Error as e:
+        logger.warning("Could not load icon mapping from DB: %s", e)
+    return mapping
+
 
 class SystemTypeManager:
+    @classmethod
+    def from_yaml_only(cls, images_dir: str = "images") -> "SystemTypeManager":
+        """Create a SystemTypeManager with types loaded from system_types.yaml (no DB)."""
+        instance = object.__new__(cls)
+        instance.db_path = ""
+        instance.images_dir = Path(images_dir)
+        instance.system_types = {}
+        instance.cache_ttl = 3600
+        instance.last_cache_update = 0
+        yaml_types = _load_system_types_from_yaml()
+        for i, t in enumerate(yaml_types):
+            name = t.get("name", "")
+            if name:
+                instance.system_types[name] = {
+                    "id": i + 1,
+                    "name": name,
+                    "display_name": t.get("display_name", name.replace("-", " ")),
+                    "category": t.get("category", "Unknown"),
+                    "icon_filename": t.get("icon_filename"),
+                    "fallback_color": t.get("fallback_color", "#808080"),
+                    "description": t.get("description", ""),
+                    "is_active": True,
+                    "sort_order": t.get("sort_order", i + 1),
+                }
+        return instance
+
     def __init__(self, db_path: str, images_dir: str = "images"):
         self.db_path = db_path
-        self.images_dir = images_dir
+        self.images_dir = Path(images_dir)
         self.system_types = {}
         self.cache_ttl = 3600
         self.last_cache_update = 0
-        self.logger = logging.getLogger(__name__)
         self.populate_default_system_types()
         self.load_system_types()
     
     def populate_default_system_types(self):
+        conn = None
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM system_types")
             count = cursor.fetchone()[0]
             if count == 0:
-                default_types = [
-                    ('Attacker-Machine', 'Attacker Machine', 'Attacker', 'attacker_logo.png', '#ff0000', 'Malicious systems', 1),
-                    ('Server-DC', 'Domain Controller', 'Server', 'dc.png', '#9932cc', 'Active Directory Domain Controllers', 2),
-                    ('Server-Database', 'Database Server', 'Server', 'database_icon.png', '#2ecc71', 'Database management systems', 3),
-                    ('Server-Web', 'Web Server', 'Server', 'webserver_icon.png', '#e67e22', 'Web application servers', 4),
-                    ('Server-Application', 'Application Server', 'Server', 'appserver_icon.png', '#8e44ad', 'Business application servers', 5),
-                    ('Server-File', 'File Server', 'Server', 'fileserver_icon.png', '#34495e', 'File storage servers', 6),
-                    ('Server-Generic', 'Generic Server', 'Server', 'server_icon.png', '#e74c3c', 'Generic server systems', 7),
-                    ('Server-Terminal SRV', 'Terminal Server', 'Server', 'server_icon.png', '#e74c3c', 'Terminal services servers', 8),
-                    ('Gateway-Firewall', 'Firewall', 'Gateway', 'firewall_icon.png', '#ff8c00', 'Network security devices', 9),
-                    ('Gateway-VPN', 'VPN Gateway', 'Gateway', 'vpn_logo.png', '#4169e1', 'Virtual Private Network gateways', 10),
-                    ('Gateway-Switch', 'Network Switch', 'Gateway', 'switch_icon.png', '#00bfff', 'Network switching devices', 11),
-                    ('Gateway-Router', 'Router', 'Gateway', 'router_icon.png', '#ff6347', 'Network routing devices', 12),
-                    ('Gateway-Web-Proxy', 'Web Proxy', 'Gateway', 'proxy_icon.png', '#8a2be2', 'Web proxy servers', 13),
-                    ('Gateway-Email', 'Email Server', 'Gateway', 'email_icon.png', '#ff69b4', 'Email messaging servers', 14),
-                    ('Gateway-DNS', 'DNS Server', 'Gateway', 'dns_icon.png', '#1e90ff', 'Domain Name System servers', 15),
-                    ('Gateway-Generic', 'Generic Gateway', 'Gateway', 'router_icon.png', '#ff6347', 'Generic gateway devices', 16),
-                    ('Desktop', 'Desktop Computer', 'Client', 'computer_icon.png', '#3498db', 'Desktop workstations', 17),
-                    ('Mobile', 'Mobile Device', 'Client', 'mobile_icon.png', '#00ff7f', 'Mobile phones and tablets', 18),
-                    ('OT-Device', 'OT Device', 'OT', 'ot_icon.png', '#ff8c42', 'Operational Technology devices', 19),
-                    ('UnKnown', 'Unknown System', 'Unknown', 'unknown.png', '#808080', 'Unknown or unidentified systems', 20)
-                ]
-                cursor.executemany("""
-                    INSERT INTO system_types (name, display_name, category, icon_filename, fallback_color, description, sort_order)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, default_types)
-                conn.commit()
-                self.logger.info(f"Populated {len(default_types)} default system types")
+                default_types = _load_system_types_from_yaml()
+                if default_types:
+                    rows = [
+                        (
+                            t["name"],
+                            t["display_name"],
+                            t["category"],
+                            t.get("icon_filename"),
+                            t.get("fallback_color", "#808080"),
+                            t.get("description", ""),
+                            t.get("sort_order", 0),
+                        )
+                        for t in default_types
+                    ]
+                    cursor.executemany("""
+                        INSERT INTO system_types (name, display_name, category, icon_filename, fallback_color, description, sort_order)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, rows)
+                    conn.commit()
+                    logger.info("Populated %s default system types from system_types.yaml", len(rows))
         except sqlite3.Error as e:
-            self.logger.error(f"Error populating default system types: {e}")
+            logger.error("Error populating default system types: %s", e)
         finally:
             if conn:
                 conn.close()
@@ -92,36 +162,33 @@ class SystemTypeManager:
                 }
                 self.system_types[row[1]] = system_type
             self.last_cache_update = datetime.now().timestamp()
-            self.logger.info(f"Loaded {len(self.system_types)} system types from database")
+            logger.info("Loaded %s system types from database", len(self.system_types))
         except sqlite3.Error as e:
-            self.logger.error(f"Error loading system types: {e}")
+            logger.error("Error loading system types: %s", e)
             self.load_fallback_system_types()
         finally:
             if conn:
                 conn.close()
     
     def load_fallback_system_types(self):
-        fallback_types = [
-            'Attacker-Machine', 'Server-Generic', 'Server-Application', 'Server-Web',
-            'Server-DC', 'Server-Terminal SRV', 'Server-Database', 'Gateway-Generic',
-            'Gateway-Firewall', 'Gateway-VPN', 'Gateway-Router', 'Gateway-Switch',
-            'Gateway-Email', 'Gateway-Web Proxy', 'Gateway-DNS', 'Desktop', 'Mobile',
-            'OT Device', 'UnKnown'
-        ]
         self.system_types = {}
-        for i, name in enumerate(fallback_types):
-            self.system_types[name] = {
-                'id': i + 1,
-                'name': name,
-                'display_name': name.replace('-', ' '),
-                'category': self.guess_category(name),
-                'icon_filename': None,
-                'fallback_color': '#808080',
-                'description': f'System type: {name}',
-                'is_active': True,
-                'sort_order': i + 1
-            }
-        self.logger.warning("Using fallback system types due to database error")
+        yaml_types = _load_system_types_from_yaml()
+        if yaml_types:
+            for i, t in enumerate(yaml_types):
+                name = t.get("name", "")
+                if name:
+                    self.system_types[name] = {
+                        "id": i + 1,
+                        "name": name,
+                        "display_name": t.get("display_name", name.replace("-", " ")),
+                        "category": t.get("category", self.guess_category(name)),
+                        "icon_filename": t.get("icon_filename"),
+                        "fallback_color": t.get("fallback_color", "#808080"),
+                        "description": t.get("description", f"System type: {name}"),
+                        "is_active": True,
+                        "sort_order": t.get("sort_order", i + 1),
+                    }
+            logger.warning("Using fallback system types from system_types.yaml (database unavailable)")
     
     def guess_category(self, name: str) -> str:
         name_lower = name.lower()
@@ -171,8 +238,7 @@ class SystemTypeManager:
     def icon_exists(self, icon_filename: str) -> bool:
         if not icon_filename:
             return False
-        icon_path = os.path.join(self.images_dir, icon_filename)
-        return os.path.exists(icon_path)
+        return (self.images_dir / icon_filename).is_file()
     
     def add_system_type(self, name: str, display_name: str, category: str, 
                        icon_filename: str = None, fallback_color: str = '#808080',
@@ -187,10 +253,10 @@ class SystemTypeManager:
             """, (name, display_name, category, icon_filename, fallback_color, description, sort_order))
             conn.commit()
             self.load_system_types()
-            self.logger.info(f"Added system type: {name}")
+            logger.info("Added system type: %s", name)
             return True
         except sqlite3.Error as e:
-            self.logger.error(f"Error adding system type {name}: {e}")
+            logger.error("Error adding system type %s: %s", name, e)
             return False
         finally:
             if conn:
@@ -214,10 +280,10 @@ class SystemTypeManager:
             cursor.execute(query, values)
             conn.commit()
             self.load_system_types()
-            self.logger.info(f"Updated system type ID: {system_type_id}")
+            logger.info("Updated system type ID: %s", system_type_id)
             return True
         except sqlite3.Error as e:
-            self.logger.error(f"Error updating system type {system_type_id}: {e}")
+            logger.error("Error updating system type %s: %s", system_type_id, e)
             return False
         finally:
             if conn:
@@ -241,13 +307,13 @@ class SystemTypeManager:
         for name, st in self.system_types.items():
             icon_file = st.get('icon_filename')
             if not icon_file:
-                results['missing'].append(f"{name}: No icon specified")
+                results["missing"].append("%s: No icon specified" % name)
                 continue
-            icon_path = os.path.join(self.images_dir, icon_file)
-            if not os.path.exists(icon_path):
-                results['missing'].append(f"{name}: {icon_file}")
+            icon_path = self.images_dir / icon_file
+            if not icon_path.is_file():
+                results["missing"].append("%s: %s" % (name, icon_file))
             else:
-                results['valid'].append(f"{name}: {icon_file}")
+                results["valid"].append("%s: %s" % (name, icon_file))
         return results
 
 class IconManager:
@@ -255,28 +321,27 @@ class IconManager:
         self.system_type_manager = system_type_manager
         self.icon_cache = {}
         self.images_dir = system_type_manager.images_dir
-        self.logger = logging.getLogger(__name__)
         self.load_icons()
-    
+
     def load_icons(self):
         try:
             for name, st in self.system_type_manager.system_types.items():
-                icon_file = st.get('icon_filename')
+                icon_file = st.get("icon_filename")
                 if icon_file:
-                    icon_path = os.path.join(self.images_dir, icon_file)
-                    if os.path.exists(icon_path):
+                    icon_path = self.images_dir / icon_file
+                    if icon_path.is_file():
                         try:
-                            self.icon_cache[name] = mpimg.imread(icon_path)
+                            self.icon_cache[name] = mpimg.imread(str(icon_path))
                         except Exception as e:
-                            self.logger.warning(f"Failed to load icon {icon_file}: {e}")
-                            self.icon_cache[name] = self.create_fallback_icon(st['fallback_color'])
+                            logger.warning("Failed to load icon %s: %s", icon_file, e)
+                            self.icon_cache[name] = self.create_fallback_icon(st["fallback_color"])
                     else:
-                        self.icon_cache[name] = self.create_fallback_icon(st['fallback_color'])
+                        self.icon_cache[name] = self.create_fallback_icon(st["fallback_color"])
                 else:
-                    self.icon_cache[name] = self.create_fallback_icon(st['fallback_color'])
-            self.logger.info(f"Loaded {len(self.icon_cache)} icons into cache")
+                    self.icon_cache[name] = self.create_fallback_icon(st["fallback_color"])
+            logger.info("Loaded %s icons into cache", len(self.icon_cache))
         except Exception as e:
-            self.logger.error(f"Error loading icons: {e}")
+            logger.error("Error loading icons: %s", e)
             self.create_fallback_icons()
     
     def create_fallback_icon(self, color: str) -> Any:
@@ -301,32 +366,18 @@ class IconManager:
             plt.close(fig)
             return buf
         except Exception as e:
-            self.logger.error(f"Error creating fallback icon: {e}")
+            logger.error("Error creating fallback icon: %s", e)
             return np.full((64, 64, 3), [128, 128, 128], dtype=np.uint8)
     
     def create_fallback_icons(self):
-        fallback_colors = {
-            'Attacker-Machine': '#ff0000',
-            'Server-DC': '#9932cc',
-            'Server-Database': '#2ecc71',
-            'Server-Web': '#e67e22',
-            'Server-Application': '#8e44ad',
-            'Server-File': '#34495e',
-            'Server-Generic': '#e74c3c',
-            'Server-Terminal SRV': '#e74c3c',
-            'Gateway-Firewall': '#ff8c00',
-            'Gateway-VPN': '#4169e1',
-            'Gateway-Switch': '#00bfff',
-            'Gateway-Router': '#ff6347',
-            'Gateway-Web-Proxy': '#8a2be2',
-            'Gateway-Email': '#ff69b4',
-            'Gateway-DNS': '#1e90ff',
-            'Gateway-Generic': '#ff6347',
-            'Desktop': '#3498db',
-            'Mobile': '#00ff7f',
-            'OT-Device': '#ff8c42',
-            'UnKnown': '#808080'
-        }
+        yaml_types = _load_system_types_from_yaml()
+        fallback_colors = {}
+        for t in yaml_types:
+            name = t.get("name")
+            if name:
+                fallback_colors[name] = t.get("fallback_color", "#808080")
+        if not fallback_colors:
+            fallback_colors["UnKnown"] = "#808080"
         for name, color in fallback_colors.items():
             icon = self.create_fallback_icon(color)
             if icon is not None:
@@ -359,54 +410,62 @@ class EvidenceTypeManager:
     def __init__(self, db_path: str, parent_window=None):
         self.db_path = db_path
         self.parent_window = parent_window
-        self.logger = logging.getLogger(__name__)
         self.evidence_type_window = None
-    
+
     def add_evidence_type(self, evidence_type: str) -> bool:
+        conn = None
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM EvidenceType WHERE evidencetype = ?", (evidence_type,))
             if cursor.fetchone()[0] > 0:
                 return False
-            cursor.execute("INSERT INTO EvidenceType (evidencetype, sort_order, source) VALUES (?, ?, ?)", (evidence_type, "0", "personal"))
+            cursor.execute(
+                "INSERT INTO EvidenceType (evidencetype, sort_order, source) VALUES (?, ?, ?)",
+                (evidence_type, "0", "personal"),
+            )
             conn.commit()
-            conn.close()
-            self.logger.info(f"Added EvidenceType: {evidence_type}")
+            logger.info("Added EvidenceType: %s", evidence_type)
             return True
         except sqlite3.Error as e:
-            self.logger.error(f"Error adding EvidenceType: {e}")
+            logger.error("Error adding EvidenceType: %s", e)
             return False
-    
+        finally:
+            if conn:
+                conn.close()
+
     def evidence_type_exists(self, evidence_type: str) -> bool:
+        conn = None
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM EvidenceType WHERE evidencetype = ?", (evidence_type,))
-            count = cursor.fetchone()[0]
-            conn.close()
-            return count > 0
+            return cursor.fetchone()[0] > 0
         except sqlite3.Error as e:
-            self.logger.error(f"Error checking EvidenceType existence: {e}")
+            logger.error("Error checking EvidenceType existence: %s", e)
             return False
-    
+        finally:
+            if conn:
+                conn.close()
+
     def get_evidence_types(self) -> List[Dict[str, Any]]:
+        conn = None
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            cursor.execute("SELECT evidencetype, sort_order, source FROM EvidenceType ORDER BY sort_order, evidencetype")
-            evidence_types = []
-            for row in cursor.fetchall():
-                evidence_types.append({
-                    'evidencetype': row[0],
-                    'sort_order': row[1],
-                    'source': row[2]
-                })
-            conn.close()
-            return evidence_types
+            cursor.execute(
+                "SELECT evidencetype, sort_order, source FROM EvidenceType ORDER BY sort_order, evidencetype"
+            )
+            return [
+                {"evidencetype": row[0], "sort_order": row[1], "source": row[2]}
+                for row in cursor.fetchall()
+            ]
         except sqlite3.Error as e:
-            self.logger.error(f"Error getting EvidenceTypes: {e}")
+            logger.error("Error getting EvidenceTypes: %s", e)
             return []
+        finally:
+            if conn:
+                conn.close()
     
     def show_add_evidence_type_dialog(self):
         if self.evidence_type_window is not None:
@@ -435,13 +494,13 @@ class EvidenceTypeManager:
         layout.addWidget(label)
         text_input = QLineEdit()
         text_input.setPlaceholderText("e.g., Custom-Log-Type")
-        text_input.setStyleSheet("padding: 8px; font-size: 11pt; border: 1px solid #ccc; border-radius: 4px;")
+        text_input.setStyleSheet(styles.INPUT_LINE_STYLE)
         layout.addWidget(text_input)
         button_layout = QHBoxLayout()
         add_button = QPushButton("Add Evidence Type")
-        add_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
+        add_button.setStyleSheet(styles.BUTTON_STYLE_BASE)
         cancel_button = QPushButton("Cancel")
-        cancel_button.setStyleSheet("background-color: #f44336; color: white; padding: 8px;")
+        cancel_button.setStyleSheet(styles.BUTTON_STYLE_DANGER)
         button_layout.addWidget(add_button)
         button_layout.addWidget(cancel_button)
         button_layout.addStretch()
