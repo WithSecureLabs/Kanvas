@@ -67,7 +67,7 @@ SOD Spreadsheets/
 ### 📝 **One-Click Report Generation**
 
 - 📌**HTML report**: The report is generated as a single, self-contained HTML file. All images are Base64-encoded and embedded directly within the document, so there’s no need to manage or share separate image files, just one HTML file is all you need.
-- **Report Contemts**: Incident Timeline, Lateral Movement, Diamond Model, Investigation summary, Security recommendation and many more.
+- **Report Contents**: Incident Timeline, Lateral Movement, Diamond Model, Investigation summary, Security recommendation and many more.
 
 >[!TIP]
 > The overall size of the HTML report may vary depending on the number of images included, particularly those used in the recommendation (.md) and the investigation summary (.md).
