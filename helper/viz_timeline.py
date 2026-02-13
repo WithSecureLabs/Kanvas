@@ -13,13 +13,15 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
 
+from helper import config, styles
+
 def open_timeline_window(window):
     try:
         if not hasattr(window, "current_workbook") or not hasattr(window, "current_file_path"):
             QMessageBox.warning(window, "Error", "No Excel file loaded. Please load a file first.")
             return None
         workbook = window.current_workbook
-        sheet_name = "Timeline"
+        sheet_name = config.SHEET_TIMELINE
         if sheet_name not in workbook.sheetnames:
             QMessageBox.critical(window, "Error", f"Sheet '{sheet_name}' not found in the workbook.")
             logger.error(f"Sheet '{sheet_name}' not found in workbook: {window.current_file_path}")
@@ -33,13 +35,13 @@ def open_timeline_window(window):
             logger.error(f"Failed to read sheet headers: {str(e)}\n{traceback.format_exc()}")
             return None
         try:
-            dt_col = headers.index("Timestamp_UTC_0")
-            desc_col = headers.index("Activity")
-            mitre_col = headers.index("MITRE Tactic")
-            event_sys_col = headers.index("Event System") if "Event System" in headers else None
-            visualize_col = headers.index("Visualize") if "Visualize" in headers else None
+            dt_col = headers.index(config.COL_TIMESTAMP)
+            desc_col = headers.index(config.COL_ACTIVITY)
+            mitre_col = headers.index(config.COL_MITRE_TACTIC)
+            event_sys_col = headers.index(config.COL_EVENT_SYSTEM) if config.COL_EVENT_SYSTEM in headers else None
+            visualize_col = headers.index(config.COL_VISUALIZE) if config.COL_VISUALIZE in headers else None
         except ValueError as e:
-            QMessageBox.critical(window, "Error", "Required columns 'Timestamp_UTC_0', 'Activity', and/or 'MITRE Tactic' not found.")
+            QMessageBox.critical(window, "Error", f"Required columns '{config.COL_TIMESTAMP}', '{config.COL_ACTIVITY}', and/or '{config.COL_MITRE_TACTIC}' not found.")
             logger.error(f"Required column not found: {str(e)}")
             return None
         timeline_activities = []
@@ -51,10 +53,10 @@ def open_timeline_window(window):
                     desc_val = sheet.cell(row=row_idx, column=desc_col+1).value
                     mitre_val = sheet.cell(row=row_idx, column=mitre_col+1).value
                     event_sys_val = sheet.cell(row=row_idx, column=event_sys_col+1).value if event_sys_col is not None else ""
-                    visualize_val = sheet.cell(row=row_idx, column=visualize_col+1).value if visualize_col is not None else "Yes"
+                    visualize_val = sheet.cell(row=row_idx, column=visualize_col+1).value if visualize_col is not None else config.VAL_VISUALIZE_YES.capitalize()
                     if isinstance(visualize_val, str):
                         visualize_val = visualize_val.strip()
-                    if visualize_val != "Yes":
+                    if visualize_val.lower() != config.VAL_VISUALIZE_YES:
                         continue
                     if isinstance(dt_val, str):
                         dt_val = dt_val.strip()
@@ -108,7 +110,7 @@ def open_timeline_window(window):
             main_layout = QVBoxLayout()
             header_panel = QHBoxLayout()
             header_label = QLabel("Incident Timeline")
-            header_label.setStyleSheet("font-size: 18pt; font-weight: bold; color: #1a237e;")
+            header_label.setStyleSheet(styles.LABEL_TITLE_STYLE)
             header_label.setAlignment(Qt.AlignLeft)
             header_panel.addWidget(header_label, 1)
             checkbox_layout = QHBoxLayout()
@@ -121,15 +123,15 @@ def open_timeline_window(window):
             export_label = QLabel("Export as:")
             export_layout.addWidget(export_label)
             export_png_btn = QPushButton("PNG")
-            export_png_btn.setStyleSheet("background-color: #4CAF50; color: white;")
+            export_png_btn.setStyleSheet(styles.BUTTON_STYLE_BASE)
             export_csv_btn = QPushButton("CSV")
-            export_csv_btn.setStyleSheet("background-color: #2196F3; color: white;")
+            export_csv_btn.setStyleSheet(styles.BUTTON_STYLE_SECONDARY)
             export_layout.addWidget(export_png_btn)
             export_layout.addWidget(export_csv_btn)
             header_panel.addLayout(export_layout)
             main_layout.addLayout(header_panel)
             status_bar = QLabel("")
-            status_bar.setStyleSheet("color: #808080; font-style: italic;")
+            status_bar.setStyleSheet(styles.STATUS_BAR_TEXT_STYLE)
             main_layout.addWidget(status_bar)
         except Exception as e:
             QMessageBox.critical(window, "Error", f"Failed to create UI components: {str(e)}")
@@ -334,7 +336,7 @@ def open_timeline_window(window):
                 timeline_window.repaint()
                 with open(file_path, 'w', newline='', encoding='utf-8') as csv_file:
                     csv_writer = csv.writer(csv_file)
-                    csv_writer.writerow(['Timestamp', 'MITRE Tactic', 'Event System', 'Activity'])
+                    csv_writer.writerow([config.COL_TIMESTAMP, config.COL_MITRE_TACTIC, config.COL_EVENT_SYSTEM, config.COL_ACTIVITY])
                     for timestamp, activity, mitre, event_system in timeline_activities:
                         csv_writer.writerow([timestamp.strftime('%Y-%m-%d %H:%M:%S'), mitre, event_system, activity])
                 status_bar.setText(f"Timeline exported to CSV: {file_path}")
