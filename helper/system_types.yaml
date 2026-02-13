@@ -1,0 +1,143 @@
+# Default system types: used to seed system_types table and as icon fallback when DB is unavailable.
+# Do not remove entries; add custom types via "Add System Type" in the app (stored in SQLite).
+default_system_types:
+  - name: Attacker-Machine
+    display_name: Attacker Machine
+    category: Attacker
+    icon_filename: attacker_logo.png
+    fallback_color: "#ff0000"
+    description: Malicious systems
+    sort_order: 1
+  - name: Server-DC
+    display_name: Domain Controller
+    category: Server
+    icon_filename: dc.png
+    fallback_color: "#9932cc"
+    description: Active Directory Domain Controllers
+    sort_order: 2
+  - name: Server-Database
+    display_name: Database Server
+    category: Server
+    icon_filename: database_icon.png
+    fallback_color: "#2ecc71"
+    description: Database management systems
+    sort_order: 3
+  - name: Server-Web
+    display_name: Web Server
+    category: Server
+    icon_filename: webserver_icon.png
+    fallback_color: "#e67e22"
+    description: Web application servers
+    sort_order: 4
+  - name: Server-Application
+    display_name: Application Server
+    category: Server
+    icon_filename: appserver_icon.png
+    fallback_color: "#8e44ad"
+    description: Business application servers
+    sort_order: 5
+  - name: Server-File
+    display_name: File Server
+    category: Server
+    icon_filename: fileserver_icon.png
+    fallback_color: "#34495e"
+    description: File storage servers
+    sort_order: 6
+  - name: Server-Generic
+    display_name: Generic Server
+    category: Server
+    icon_filename: server_icon.png
+    fallback_color: "#e74c3c"
+    description: Generic server systems
+    sort_order: 7
+  - name: Server-Terminal SRV
+    display_name: Terminal Server
+    category: Server
+    icon_filename: server_icon.png
+    fallback_color: "#e74c3c"
+    description: Terminal services servers
+    sort_order: 8
+  - name: Gateway-Firewall
+    display_name: Firewall
+    category: Gateway
+    icon_filename: firewall_icon.png
+    fallback_color: "#ff8c00"
+    description: Network security devices
+    sort_order: 9
+  - name: Gateway-VPN
+    display_name: VPN Gateway
+    category: Gateway
+    icon_filename: vpn_logo.png
+    fallback_color: "#4169e1"
+    description: Virtual Private Network gateways
+    sort_order: 10
+  - name: Gateway-Switch
+    display_name: Network Switch
+    category: Gateway
+    icon_filename: switch_icon.png
+    fallback_color: "#00bfff"
+    description: Network switching devices
+    sort_order: 11
+  - name: Gateway-Router
+    display_name: Router
+    category: Gateway
+    icon_filename: router_icon.png
+    fallback_color: "#ff6347"
+    description: Network routing devices
+    sort_order: 12
+  - name: Gateway-Web-Proxy
+    display_name: Web Proxy
+    category: Gateway
+    icon_filename: proxy_icon.png
+    fallback_color: "#8a2be2"
+    description: Web proxy servers
+    sort_order: 13
+  - name: Gateway-Email
+    display_name: Email Server
+    category: Gateway
+    icon_filename: email_icon.png
+    fallback_color: "#ff69b4"
+    description: Email messaging servers
+    sort_order: 14
+  - name: Gateway-DNS
+    display_name: DNS Server
+    category: Gateway
+    icon_filename: dns_icon.png
+    fallback_color: "#1e90ff"
+    description: Domain Name System servers
+    sort_order: 15
+  - name: Gateway-Generic
+    display_name: Generic Gateway
+    category: Gateway
+    icon_filename: router_icon.png
+    fallback_color: "#ff6347"
+    description: Generic gateway devices
+    sort_order: 16
+  - name: Desktop
+    display_name: Desktop Computer
+    category: Client
+    icon_filename: computer_icon.png
+    fallback_color: "#3498db"
+    description: Desktop workstations
+    sort_order: 17
+  - name: Mobile
+    display_name: Mobile Device
+    category: Client
+    icon_filename: mobile_icon.png
+    fallback_color: "#00ff7f"
+    description: Mobile phones and tablets
+    sort_order: 18
+  - name: OT-Device
+    display_name: OT Device
+    category: OT
+    icon_filename: ot_icon.png
+    fallback_color: "#ff8c42"
+    description: Operational Technology devices
+    sort_order: 19
+  - name: UnKnown
+    display_name: Unknown System
+    category: Unknown
+    icon_filename: unknown.png
+    fallback_color: "#808080"
+    description: Unknown or unidentified systems
+    sort_order: 20
