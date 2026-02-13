@@ -1,18 +1,78 @@
-# code reviewed 
-from PySide6.QtWidgets import QProgressBar, QMessageBox, QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout
-from PySide6.QtCore import QThread, Signal, QObject
-import requests
-import sqlite3
+# download_updates.py: fetches external data (Tor, CISA, portals, LOLBAS, artifacts,
+# HijackLibs, SID, LOLESXi, LOLDrivers, etc.) from URLs defined in helper/download_links.yaml,
+# updates the SQLite database, and extracts archives into data/ for use by the application.
+# Revised on 01/02/2026 by Jinto Antony
+
 import csv
 import json
-import os
-import pandas as pd
-from pathlib import Path
 import logging
-import zipfile
+import os
 import shutil
+import sqlite3
+import sys
+import time
+import zipfile
+from pathlib import Path
+
+import pandas as pd
+import requests
+import yaml
+from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+)
 
 logger = logging.getLogger(__name__)
+
+DOWNLOAD_LINKS_YAML = "download_links.yaml"
+
+
+def load_download_urls():
+    base_dir = Path(__file__).resolve().parent
+    yaml_path = base_dir / DOWNLOAD_LINKS_YAML
+    if not yaml_path.is_file():
+        logger.warning("download_links.yaml not found at %s", yaml_path)
+        return {}
+    try:
+        data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        if not data or not isinstance(data, dict):
+            logger.warning("download_links.yaml empty or invalid")
+            return {}
+        return {str(k): str(v) for k, v in data.items() if v}
+    except Exception as e:
+        logger.warning("Could not load download_links.yaml: %s", e)
+        return {}
+
+
+def handle_remove_readonly(func, path, exc):
+    try:
+        os.chmod(path, 0o777)
+        func(path)
+    except Exception:
+        try:
+            func(path)
+        except Exception:
+            pass
+
+
+def remove_tree_safe(path, retry_delay=0.2):
+    if not path or not path.exists():
+        return
+    try:
+        shutil.rmtree(path, onerror=handle_remove_readonly)
+    except Exception as e:
+        logger.warning("Could not remove directory %s: %s", path, e)
+        time.sleep(retry_delay)
+        try:
+            shutil.rmtree(path, onerror=handle_remove_readonly)
+        except Exception as e2:
+            logger.error("Failed to remove directory after retry: %s", e2)
 
 class DownloadWorker(QObject):
     progress = Signal(int)
@@ -60,7 +120,7 @@ class DownloadWorker(QObject):
                                 self.progress.emit(overall_progress)
                     downloaded_files.append(filename)
                 except Exception as e:
-                    logger.error(f"Failed to download {filename}: {e}")
+                    logger.error("Failed to download %s: %s", filename, e)
                     self.status_update.emit(f"Failed to download {filename}: {str(e)}")
                 current_step += 1
                 progress_value = int((current_step / total_steps) * 100)
@@ -72,13 +132,23 @@ class DownloadWorker(QObject):
             self.update_database()
             self.status_update.emit("Processing LOLBAS files...")
             self.process_lolbas_zip()
+            self.status_update.emit("Processing artifacts files...")
+            self.process_artifacts_zip()
+            self.status_update.emit("Processing HijackLibs files...")
+            self.process_hijacklibs_zip()
+            self.status_update.emit("Processing SID file...")
+            self.process_sid_file()
+            self.status_update.emit("Processing LOLESXi files...")
+            self.process_lolesxi_zip()
+            self.status_update.emit("Processing drivers file...")
+            self.process_drivers_file()
             self.status_update.emit("Cleaning up temporary files...")
             self.cleanup_files(downloaded_files)
             self.progress.emit(100)
             self.status_update.emit("Complete!")
             self.finished.emit(True, "All updates downloaded and database updated successfully!")
         except Exception as e:
-            logger.error(f"Error in download worker: {e}")
+            logger.error("Error in download worker: %s", e)
             self.finished.emit(False, f"Error: {str(e)}")
     def update_database(self):
         def insert_portal_data(cursor, group_name, portal_name, primary_url, source_file):
@@ -102,9 +172,9 @@ class DownloadWorker(QObject):
                                     (ip_address, source),
                                 )
                 except FileNotFoundError:
-                    logger.error(f"File {file_name} not found.")
+                    logger.error("File %s not found.", file_name)
                 except Exception as e:
-                    logger.error(f"Error processing {file_name}: {e}")
+                    logger.error("Error processing %s: %s", file_name, e)
             insert_data("dan.txt", "dan.txt")
             insert_data("torproject.txt", "torproject.txt")
             insert_data("secureupdates.txt", "secureupdates.txt")
@@ -130,7 +200,7 @@ class DownloadWorker(QObject):
                             row['knownRansomwareCampaignUse']
                         ))
                 except Exception as e:
-                    logger.error(f"Error processing {cisa_csv}: {e}")
+                    logger.error("Error processing %s: %s", cisa_csv, e)
             cursor.execute("DELETE FROM evtx_id")
             cursor.execute("DELETE FROM sqlite_sequence WHERE name='evtx_id'")
             evtx_file = Path("evtx_id.csv")
@@ -163,7 +233,7 @@ class DownloadWorker(QObject):
             for json_file in json_files:
                 file_path = Path(json_file)
                 if not file_path.exists():
-                    logger.warning(f"File {json_file} does not exist, skipping.")
+                    logger.warning("File %s does not exist, skipping.", json_file)
                     continue
                 try:
                     with open(file_path, 'r', encoding='utf-8') as file:
@@ -177,7 +247,7 @@ class DownloadWorker(QObject):
                                 continue
                             insert_portal_data(cursor, group_name, portal_name, primary_url, file_path.name)
                 except Exception as e:
-                    logger.error(f"Error processing {json_file}: {e}")
+                    logger.error("Error processing %s: %s", json_file, e)
             cursor.execute("DELETE FROM entra_appid")
             csv_files = [
                 'MicrosoftApps.csv',
@@ -187,7 +257,7 @@ class DownloadWorker(QObject):
             for file in csv_files:
                 file_path = Path(file)
                 if not file_path.exists():
-                    logger.warning(f"File {file} does not exist, skipping.")
+                    logger.warning("File %s does not exist, skipping.", file)
                     continue
                 try:
                     df = pd.read_csv(file_path, dtype=str)
@@ -208,7 +278,7 @@ class DownloadWorker(QObject):
                             row['FileName']
                         ))
                 except Exception as e:
-                    logger.error(f"Error processing {file}: {e}")
+                    logger.error("Error processing %s: %s", file, e)
             cursor.execute("DELETE FROM bookmarks WHERE group_name != 'Personal'")
             onetracker_csv = Path("onetracker.csv")
             bookmarks_columns = ['group_name', 'portal_name', 'source_file', 'primary_url']
@@ -232,9 +302,9 @@ class DownloadWorker(QObject):
                                 row['primary_url']
                             ))
                 except Exception as e:
-                    logger.error(f"Error processing {onetracker_csv}: {e}")
+                    logger.error("Error processing %s: %s", onetracker_csv, e)
             else:
-                logger.warning(f"File {onetracker_csv} does not exist, skipping.")
+                logger.warning("File %s does not exist, skipping.", onetracker_csv)
             cursor.execute("DELETE FROM bookmarks WHERE portal_name = 'PlaceHolder' AND id NOT IN (SELECT MIN(id) FROM bookmarks WHERE portal_name = 'PlaceHolder')")
             cursor.execute("DELETE FROM defend")
             cursor.execute("DELETE FROM sqlite_sequence WHERE name='defend'")
@@ -251,9 +321,9 @@ class DownloadWorker(QObject):
                             placeholders=", ".join(["?"] * len(df_d3fend.columns))
                         ), tuple(row[col] for col in df_d3fend.columns))
                 except Exception as e:
-                    logger.error(f"Error processing {d3fend_csv}: {e}")
+                    logger.error("Error processing %s: %s", d3fend_csv, e)
             else:
-                logger.warning(f"File {d3fend_csv} does not exist, skipping.")
+                logger.warning("File %s does not exist, skipping.", d3fend_csv)
             cursor.execute("DELETE FROM EvidenceType")
             cursor.execute("DELETE FROM sqlite_sequence WHERE name='EvidenceType'")
             evidencetype_csv = Path("evidencetype.csv")
@@ -267,13 +337,13 @@ class DownloadWorker(QObject):
                                 VALUES (?, ?, ?)
                             ''', (row.get("evidencetype", ""), row.get("sort_order", ""), row.get("source", "")))
                 except Exception as e:
-                    logger.error(f"Error processing {evidencetype_csv}: {e}")
+                    logger.error("Error processing %s: %s", evidencetype_csv, e)
             else:
-                logger.warning(f"File {evidencetype_csv} does not exist, skipping.")
+                logger.warning("File %s does not exist, skipping.", evidencetype_csv)
             conn.commit()
             logger.info("Database updated successfully.")
         except sqlite3.Error as e:
-            logger.error(f"Database error: {e}")
+            logger.error("Database error: %s", e)
             raise
         finally:
             if conn:
@@ -281,7 +351,7 @@ class DownloadWorker(QObject):
     def process_lolbas_zip(self):
         zip_file = Path("lolbas_binaries.zip")
         if not zip_file.exists():
-            logger.warning(f"LOLBAS zip file {zip_file} does not exist, skipping.")
+            logger.warning("LOLBAS zip file %s does not exist, skipping.", zip_file)
             return
         
         try:
@@ -289,24 +359,411 @@ class DownloadWorker(QObject):
             data_dir.mkdir(exist_ok=True)
             lolbas_dir = data_dir / "lolbas"
             if lolbas_dir.exists():
-                logger.info(f"Deleting existing LOLBAS directory: {lolbas_dir}")
+                logger.info("Deleting existing LOLBAS directory: %s", lolbas_dir)
                 shutil.rmtree(lolbas_dir)
             lolbas_dir.mkdir(exist_ok=True)
-            logger.info(f"Extracting {zip_file} to {lolbas_dir}")
+            logger.info("Extracting %s to %s", zip_file, lolbas_dir)
             with zipfile.ZipFile(zip_file, 'r') as zip_ref:
                 zip_ref.extractall(lolbas_dir)
                 yml_files = list(lolbas_dir.rglob("*.yml"))
-                logger.info(f"Successfully extracted {len(yml_files)} .yml files to {lolbas_dir}")
+                logger.info("Successfully extracted %s .yml files to %s", len(yml_files), lolbas_dir)
         except Exception as e:
-            logger.error(f"Error processing LOLBAS zip file: {e}")
+            logger.error("Error processing LOLBAS zip file: %s", e)
+    
+    def process_artifacts_zip(self):
+        zip_file = Path("artifacts-main.zip")
+        if not zip_file.exists():
+            logger.warning("Artifacts zip file %s does not exist, skipping.", zip_file)
+            return
+        
+        temp_extract = None
+        try:
+            artifacts_dir = Path("data/artifacts").resolve()
+            artifacts_dir.mkdir(parents=True, exist_ok=True)
+            temp_extract = Path("temp_artifacts_extract").resolve()
+            if temp_extract.exists():
+                remove_tree_safe(temp_extract, retry_delay=0.1)
+                if temp_extract.exists():
+                    logger.error("Failed to remove temp directory after retry")
+                    return
+            temp_extract.mkdir(parents=True, exist_ok=True)
+            logger.info("Extracting %s to temporary location...", zip_file)
+            with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+                zip_ref.extractall(temp_extract)
+            
+            source_yaml_dir = None
+            primary_path = temp_extract / "artifacts-main" / "artifacts" / "data"
+            if primary_path.exists():
+                source_yaml_dir = primary_path
+            else:
+                alt_path = temp_extract / "artifacts" / "data"
+                if alt_path.exists():
+                    source_yaml_dir = alt_path
+                else:
+                    logger.warning("Expected directory %s does not exist. Searching case-insensitively...", primary_path)
+                    found_dir = None
+                    for root_dir in temp_extract.iterdir():
+                        if root_dir.is_dir():
+                            artifacts_dir_candidate = None
+                            if root_dir.name.lower() == "artifacts-main":
+                                artifacts_dir_candidate = root_dir / "artifacts" / "data"
+                            elif root_dir.name.lower() == "artifacts":
+                                artifacts_dir_candidate = root_dir / "data"
+                            
+                            if artifacts_dir_candidate and artifacts_dir_candidate.exists():
+                                found_dir = artifacts_dir_candidate
+                                break
+                            for subdir in root_dir.rglob("artifacts/data"):
+                                if subdir.is_dir():
+                                    found_dir = subdir
+                                    break
+                            if found_dir:
+                                break
+                    
+                    if found_dir:
+                        source_yaml_dir = found_dir
+                        logger.info("Found artifacts directory at: %s", found_dir)
+                    else:
+                        logger.error("Could not find artifacts/data directory in ZIP file.")
+                        remove_tree_safe(temp_extract)
+                        return
+            if not source_yaml_dir or not source_yaml_dir.exists():
+                logger.error("Could not locate artifacts/data directory in ZIP file.")
+                remove_tree_safe(temp_extract)
+                return
+            yaml_files = []
+            for pattern in ["*.yaml", "*.yml", "*.YAML", "*.YML"]:
+                yaml_files.extend(source_yaml_dir.glob(pattern))
+            yaml_files = list(set(yaml_files))
+            if not yaml_files:
+                logger.warning("No YAML files found in %s", source_yaml_dir)
+                remove_tree_safe(temp_extract)
+                return
+            copied_count = 0
+            for yaml_file in yaml_files:
+                try:
+                    dest_file = artifacts_dir / yaml_file.name
+                    shutil.copy2(yaml_file, dest_file)
+                    os.chmod(dest_file, 0o644)
+                    copied_count += 1
+                    logger.debug("Copied %s to %s", yaml_file.name, artifacts_dir)
+                except PermissionError as e:
+                    logger.error("Permission error copying %s: %s", yaml_file.name, e)
+                    try:
+                        os.chmod(yaml_file, 0o644)
+                        shutil.copy2(yaml_file, dest_file)
+                        os.chmod(dest_file, 0o644)
+                        copied_count += 1
+                    except Exception as e2:
+                        logger.error("Failed to copy %s after permission fix: %s", yaml_file.name, e2)
+                except Exception as e:
+                    logger.error("Error copying %s: %s", yaml_file.name, e)
+            logger.info("Successfully copied %s YAML files from %s found to %s", copied_count, len(yaml_files), artifacts_dir)
+            remove_tree_safe(temp_extract)
+            try:
+                if "helper.artifacts" in sys.modules:
+                    artifacts_module = sys.modules['helper.artifacts']
+                    if hasattr(artifacts_module, 'ARTIFACTS_DATA_CACHE'):
+                        artifacts_module.ARTIFACTS_DATA_CACHE = None
+                        logger.info("Cleared artifacts data cache")
+            except Exception as e:
+                logger.warning("Could not clear artifacts cache: %s", e)
+            
+        except zipfile.BadZipFile:
+            logger.error("Invalid ZIP file: %s", zip_file)
+        except Exception as e:
+            logger.error("Error processing artifacts zip file: %s", e)
+            remove_tree_safe(temp_extract if temp_extract else None)
+    def process_hijacklibs_zip(self):
+        zip_file = Path("HijackLibs-main.zip")
+        if not zip_file.exists():
+            logger.warning("HijackLibs zip file %s does not exist, skipping.", zip_file)
+            return
+        temp_extract = None
+        try:
+            hijacklib_dir = Path("data/hijacklib").resolve()
+            hijacklib_dir.mkdir(parents=True, exist_ok=True)
+            temp_extract = Path("temp_hijacklibs_extract").resolve()
+            if temp_extract.exists():
+                remove_tree_safe(temp_extract, retry_delay=0.1)
+                if temp_extract.exists():
+                    logger.error("Failed to remove temp directory after retry")
+                    return
+            temp_extract.mkdir(parents=True, exist_ok=True)
+            logger.info("Extracting %s to temporary location...", zip_file)
+            with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                zip_ref.extractall(temp_extract)
+            source_yml_dir = None
+            primary_path = temp_extract / "HijackLibs-main" / "yml"
+            if primary_path.exists():
+                source_yml_dir = primary_path
+            else:
+                alt_path = temp_extract / "yml"
+                if alt_path.exists():
+                    source_yml_dir = alt_path
+                else:
+                    logger.warning("Expected directory %s does not exist. Searching case-insensitively...", primary_path)
+                    found_dir = None
+                    for root_dir in temp_extract.iterdir():
+                        if root_dir.is_dir():
+                            yml_dir_candidate = None
+                            if root_dir.name.lower() == "hijacklibs-main":
+                                yml_dir_candidate = root_dir / "yml"
+                            elif root_dir.name.lower() == "yml":
+                                yml_dir_candidate = root_dir
+                            
+                            if yml_dir_candidate and yml_dir_candidate.exists():
+                                found_dir = yml_dir_candidate
+                                break
+                            for subdir in root_dir.rglob("yml"):
+                                if subdir.is_dir():
+                                    found_dir = subdir
+                                    break
+                            if found_dir:
+                                break
+                    
+                    if found_dir:
+                        source_yml_dir = found_dir
+                        logger.info("Found yml directory at: %s", found_dir)
+                    else:
+                        logger.error("Could not find yml directory in ZIP file.")
+                        remove_tree_safe(temp_extract)
+                        return
+            if not source_yml_dir or not source_yml_dir.exists():
+                logger.error("Could not locate yml directory in ZIP file.")
+                remove_tree_safe(temp_extract)
+                return
+            yml_files = []
+            for pattern in ["*.yml", "*.yaml", "*.YML", "*.YAML"]:
+                yml_files.extend(source_yml_dir.rglob(pattern))
+            yml_files = list(set(yml_files))
+            if not yml_files:
+                logger.warning("No YML files found in %s", source_yml_dir)
+                remove_tree_safe(temp_extract)
+                return
+            copied_count = 0
+            for yml_file in yml_files:
+                try:
+                    rel_path = yml_file.relative_to(source_yml_dir)
+                    dest_file = hijacklib_dir / rel_path
+                    dest_file.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(yml_file, dest_file)
+                    os.chmod(dest_file, 0o644)
+                    copied_count += 1
+                    logger.debug("Copied %s to %s", rel_path, hijacklib_dir)
+                except PermissionError as e:
+                    logger.error("Permission error copying %s: %s", yml_file.name, e)
+                    try:
+                        os.chmod(yml_file, 0o644)
+                        rel_path = yml_file.relative_to(source_yml_dir)
+                        dest_file = hijacklib_dir / rel_path
+                        dest_file.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(yml_file, dest_file)
+                        os.chmod(dest_file, 0o644)
+                        copied_count += 1
+                    except Exception as e2:
+                        logger.error("Failed to copy %s after permission fix: %s", yml_file.name, e2)
+                except Exception as e:
+                    logger.error("Error copying %s: %s", yml_file.name, e)
+            logger.info("Successfully copied %s YML files from %s found to %s", copied_count, len(yml_files), hijacklib_dir)
+            remove_tree_safe(temp_extract)
+            try:
+                if "helper.hijacklibs" in sys.modules:
+                    hijacklibs_module = sys.modules['helper.hijacklibs']
+                    if hasattr(hijacklibs_module, 'HIJACKLIBS_DATA_CACHE'):
+                        hijacklibs_module.HIJACKLIBS_DATA_CACHE = None
+                        logger.info("Cleared hijacklibs data cache")
+            except Exception as e:
+                logger.warning("Could not clear hijacklibs cache: %s", e)
+            
+        except zipfile.BadZipFile:
+            logger.error("Invalid ZIP file: %s", zip_file)
+        except Exception as e:
+            logger.error("Error processing hijacklibs zip file: %s", e)
+            remove_tree_safe(temp_extract if temp_extract else None)
+    def process_sid_file(self):
+        sid_file = Path("sid.yml")
+        if not sid_file.exists():
+            logger.warning("SID file %s does not exist, skipping.", sid_file)
+            return
+        try:
+            microsoft_dir = Path("data/microsoft").resolve()
+            microsoft_dir.mkdir(parents=True, exist_ok=True)
+            dest_file = microsoft_dir / "sid.yml"
+            try:
+                shutil.copy2(sid_file, dest_file)
+                os.chmod(dest_file, 0o644)
+                logger.info("Successfully copied %s to %s", sid_file, dest_file)
+            except PermissionError as e:
+                logger.error("Permission error copying %s: %s", sid_file, e)
+                try:
+                    os.chmod(sid_file, 0o644)
+                    shutil.copy2(sid_file, dest_file)
+                    os.chmod(dest_file, 0o644)
+                    logger.info("Successfully copied %s to %s after permission fix", sid_file, dest_file)
+                except Exception as e2:
+                    logger.error("Failed to copy %s after permission fix: %s", sid_file, e2)
+            try:
+                if "helper.resources.windows_sid" in sys.modules:
+                    sid_module = sys.modules['helper.resources.windows_sid']
+                    if hasattr(sid_module, 'SID_DATA_CACHE'):
+                        sid_module.SID_DATA_CACHE = None
+                        logger.info("Cleared SID data cache")
+            except Exception as e:
+                logger.warning("Could not clear SID cache: %s", e)
+        except Exception as e:
+            logger.error("Error processing SID file: %s", e)
+    def process_lolesxi_zip(self):
+        zip_file = Path("LOLESXi-main.zip")
+        if not zip_file.exists():
+            logger.warning("LOLESXi zip file %s does not exist, skipping.", zip_file)
+            return
+        temp_extract = None
+        try:
+            lolesxi_dir = Path("data/linux/lolesxi").resolve()
+            lolesxi_dir.mkdir(parents=True, exist_ok=True)
+            temp_extract = Path("temp_lolesxi_extract").resolve()
+            if temp_extract.exists():
+                remove_tree_safe(temp_extract, retry_delay=0.1)
+                if temp_extract.exists():
+                    logger.error("Failed to remove temp directory after retry")
+                    return
+            temp_extract.mkdir(parents=True, exist_ok=True)
+            logger.info("Extracting %s to temporary location...", zip_file)
+            with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                zip_ref.extractall(temp_extract)
+            source_md_dir = None
+            primary_path = temp_extract / "LOLESXi-main" / "_lolesxi" / "Binaries"
+            if primary_path.exists():
+                source_md_dir = primary_path
+            else:
+                alt_path = temp_extract / "_lolesxi" / "Binaries"
+                if alt_path.exists():
+                    source_md_dir = alt_path
+                else:
+                    logger.warning("Expected directory %s does not exist. Searching case-insensitively...", primary_path)
+                    found_dir = None
+                    for root_dir in temp_extract.iterdir():
+                        if root_dir.is_dir():
+                            lolesxi_dir_candidate = None
+                            if root_dir.name.lower() == "lolesxi-main":
+                                lolesxi_dir_candidate = root_dir / "_lolesxi" / "Binaries"
+                            
+                            if lolesxi_dir_candidate and lolesxi_dir_candidate.exists():
+                                found_dir = lolesxi_dir_candidate
+                                break
+                            for subdir in root_dir.rglob("_lolesxi/Binaries"):
+                                if subdir.is_dir():
+                                    found_dir = subdir
+                                    break
+                            if found_dir:
+                                break
+                            for subdir in root_dir.rglob("*"):
+                                if subdir.is_dir():
+                                    path_str = str(subdir).lower()
+                                    if "_lolesxi" in path_str and "binaries" in path_str:
+                                        if subdir.parent.name.lower() == "_lolesxi" or any(
+                                            p.name.lower() == "_lolesxi" for p in subdir.parents
+                                        ):
+                                            found_dir = subdir
+                                            break
+                            if found_dir:
+                                break
+                    if found_dir:
+                        source_md_dir = found_dir
+                        logger.info("Found Binaries directory at: %s", found_dir)
+                    else:
+                        logger.error("Could not find _lolesxi/Binaries directory in ZIP file.")
+                        remove_tree_safe(temp_extract)
+                        return
+            if not source_md_dir or not source_md_dir.exists():
+                logger.error("Could not locate _lolesxi/Binaries directory in ZIP file.")
+                remove_tree_safe(temp_extract)
+                return
+            md_files = []
+            for pattern in ["*.md", "*.MD", "*.Md", "*.mD"]:
+                md_files.extend(source_md_dir.glob(pattern))
+            md_files = list(set(md_files))
+            if not md_files:
+                logger.warning("No .md files found in %s", source_md_dir)
+                remove_tree_safe(temp_extract)
+                return
+            copied_count = 0
+            for md_file in md_files:
+                try:
+                    dest_file = lolesxi_dir / md_file.name
+                    shutil.copy2(md_file, dest_file)
+                    os.chmod(dest_file, 0o644)
+                    copied_count += 1
+                    logger.debug("Copied %s to %s", md_file.name, lolesxi_dir)
+                except PermissionError as e:
+                    logger.error("Permission error copying %s: %s", md_file.name, e)
+                    try:
+                        os.chmod(md_file, 0o644)
+                        shutil.copy2(md_file, dest_file)
+                        os.chmod(dest_file, 0o644)
+                        copied_count += 1
+                    except Exception as e2:
+                        logger.error("Failed to copy %s after permission fix: %s", md_file.name, e2)
+                except Exception as e:
+                    logger.error("Error copying %s: %s", md_file.name, e)
+            logger.info("Successfully copied %s .md files from %s found to %s", copied_count, len(md_files), lolesxi_dir)
+            remove_tree_safe(temp_extract)
+            try:
+                if "helper.resources.lolesxi" in sys.modules:
+                    lolesxi_module = sys.modules['helper.resources.lolesxi']
+                    if hasattr(lolesxi_module, 'LOLESXI_DATA_CACHE'):
+                        lolesxi_module.LOLESXI_DATA_CACHE = None
+                        logger.info("Cleared LOLESXi data cache")
+            except Exception as e:
+                logger.warning("Could not clear LOLESXi cache: %s", e)
+                
+        except zipfile.BadZipFile:
+            logger.error("Invalid ZIP file: %s", zip_file)
+        except Exception as e:
+            logger.error("Error processing LOLESXi zip file: %s", e)
+            remove_tree_safe(temp_extract if temp_extract else None)
+    def process_drivers_file(self):
+        drivers_file = Path("drivers.json")
+        if not drivers_file.exists():
+            logger.warning("Drivers file %s does not exist, skipping.", drivers_file)
+            return
+        try:
+            microsoft_dir = Path("data/microsoft").resolve()
+            microsoft_dir.mkdir(parents=True, exist_ok=True)
+            dest_file = microsoft_dir / "drivers.json"
+            try:
+                shutil.copy2(drivers_file, dest_file)
+                os.chmod(dest_file, 0o644)
+                logger.info("Successfully copied %s to %s", drivers_file, dest_file)
+            except PermissionError as e:
+                logger.error("Permission error copying %s: %s", drivers_file, e)
+                try:
+                    os.chmod(drivers_file, 0o644)
+                    shutil.copy2(drivers_file, dest_file)
+                    os.chmod(dest_file, 0o644)
+                    logger.info("Successfully copied %s to %s after permission fix", drivers_file, dest_file)
+                except Exception as e2:
+                    logger.error("Failed to copy %s after permission fix: %s", drivers_file, e2)
+            try:
+                if "helper.resources.loldrivers" in sys.modules:
+                    drivers_module = sys.modules['helper.resources.loldrivers']
+                    if hasattr(drivers_module, 'LOLDRIVERS_DATA_CACHE'):
+                        drivers_module.LOLDRIVERS_DATA_CACHE = None
+                        logger.info("Cleared LOLDrivers data cache")
+            except Exception as e:
+                logger.warning("Could not clear LOLDrivers cache: %s", e)
+        except Exception as e:
+            logger.error("Error processing drivers file: %s", e)
+    
     def cleanup_files(self, file_list):
         for file_to_delete in file_list:
             try:
                 if os.path.exists(file_to_delete):
                     os.remove(file_to_delete)
-                    logger.info(f"Deleted file: {file_to_delete}")
+                    logger.info("Deleted file: %s", file_to_delete)
             except OSError as e:
-                logger.error(f"Error deleting file {file_to_delete}: {e}")
+                logger.error("Error deleting file %s: %s", file_to_delete, e)
 class DownloadProgressDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -367,31 +824,14 @@ class DownloadProgressDialog(QDialog):
         msg_box.exec()
         self.accept() if success else self.reject()
 def download_updates(window):
-    urls = {
-        "alireza-rezaee.csv": "https://raw.githubusercontent.com/alireza-rezaee/tor-nodes/main/latest.all.csv",
-        "torproject.txt": "https://check.torproject.org/torbulkexitlist",
-        "d3fend-full-mappings.csv": "https://d3fend.mitre.org/api/ontology/inference/d3fend-full-mappings.csv",
-        "user.json": "https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/user.json",
-        "admin.json": "https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/admin.json",
-        "thirdparty.json": "https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/thirdparty.json",
-        "us-govt.json": "https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/us-govt.json",
-        "china.json": "https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/china.json",
-        "edu.json": "https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/edu.json",
-        "licensing.json": "https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/licensing.json",
-        "training.json": "https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/training.json",
-        "evtx_id.csv": "https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/evtx_id.csv",
-        "mitre_techniques.csv": "https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/mitre_techniques_v17.csv",
-        "known_exploited_vulnerabilities.csv": "https://www.cisa.gov/sites/default/files/csv/known_exploited_vulnerabilities.csv",
-        "MicrosoftApps.csv": "https://raw.githubusercontent.com/merill/microsoft-info/main/_info/MicrosoftApps.csv",
-        "GraphAppRoles.csv": "https://raw.githubusercontent.com/merill/microsoft-info/main/_info/GraphAppRoles.csv",
-        "GraphDelegateRoles.csv": "https://raw.githubusercontent.com/merill/microsoft-info/main/_info/GraphDelegateRoles.csv",
-        "Malicious_EntraID.csv": "https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/Malicious_EntraID.csv",
-        "onetracker.csv": "https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/onetracker.csv",
-        "evidencetype.csv": "https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/evidencetype.csv",
-        "secureupdates.txt": "https://secureupdates.checkpoint.com/IP-list/TOR.txt",
-        "lolbas_binaries.zip": "https://raw.githubusercontent.com/arimboor/kanvas_lookups/main/lolbas_binaries.zip",
-    }
-
+    urls = load_download_urls()
+    if not urls:
+        QMessageBox.warning(
+            window,
+            "No download sources",
+            "No download links found. Ensure helper/download_links.yaml exists and contains filename -> URL entries.",
+        )
+        return
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
     db_path = getattr(window, "db_path", "kanvas.db")
     dialog = DownloadProgressDialog(window)
