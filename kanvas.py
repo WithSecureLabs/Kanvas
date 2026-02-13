@@ -13,12 +13,13 @@ from PySide6 import __version__
 from PySide6.QtWidgets import (
     QApplication, QMessageBox, QPushButton, QMainWindow, QFileDialog, QTreeView, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QComboBox, QGridLayout, QTextEdit, QSizePolicy, QWidget, QDateEdit, QProgressBar, QScrollArea, QHeaderView, QSplashScreen,
-    QMenu, QStyledItemDelegate, QStyle, QToolTip
+    QMenu, QStyledItemDelegate, QStyle, QToolTip, QCheckBox
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor, QFont, QPixmap, QKeySequence, QAction, QPainter, QTextOption
-from PySide6.QtCore import QFile, Qt, QDate, QRect, QTimer, QSize, QModelIndex
-from viz_network import visualize_network
-from viz_timeline import open_timeline_window
+from PySide6.QtCore import QFile, Qt, QDate, QRect, QTimer, QSize, QModelIndex, QSortFilterProxyModel
+from helper.viz_network import visualize_network
+from helper.viz_timeline import open_timeline_window
+from helper.reporting.report_builder import open_report_builder
 from helper.database_utils import create_all_tables
 from helper.download_updates import download_updates
 from helper.api_config import open_api_settings
@@ -26,33 +27,39 @@ from helper.mapping_defend import open_defend_window
 from helper.mapping_attack import mitre_mapping
 from helper.mapping_veris import open_veris_window
 from helper.bookmarks import display_bookmarks_kb
-from helper.lookup_entraid import open_entra_lookup_window
+from helper.lookups.lookup_entraid import open_entra_lookup_window
 from helper.resources_data import display_msportals_data, display_event_id_kb
-from helper.lookup_domain import open_domain_lookup_window
-from helper.lookup_cve import open_cve_window
-from helper.lookup_ip import open_ip_lookup_window
-from helper.lookup_file import open_hash_lookup_window
+from helper import config, styles
+from helper.lookups.lookup_domain import open_domain_lookup_window
+from helper.lookups.lookup_cve import open_cve_window
+from helper.lookups.lookup_ip import open_ip_lookup_window
+from helper.lookups.lookup_file import open_hash_lookup_window
 from helper.system_type import EvidenceTypeManager
-from helper.lookup_email import open_email_lookup_window
-from helper.lookup_ransomware import open_ransomware_kb_window
-from helper.lolbas import display_lolbas_kb
+from helper.lookups.lookup_email import open_email_lookup_window
+from helper.lookups.lookup_ransomware import open_ransomware_kb_window
+from helper.resources.lolbas import display_lolbas_kb
+from helper.resources.artifacts import display_artifacts_kb
+from helper.resources.hijacklibs import display_hijacklibs_kb
+from helper.resources.windows_sid import display_windows_sid_kb
+from helper.resources.lolesxi import display_lolesxi_kb
+from helper.resources.loldrivers import display_loldrivers_kb
 from helper.stix import convert_indicators_to_stix
 from helper.defang import defang_excel_file
-from markdown_editor import handle_markdown_editor
-from helper.bot import handle_chat_bot
-from helper.mitre_flow_platform import open_mitre_flow_window
+from helper.markdown_editor import handle_markdown_editor
+from helper.mitre_attack_flow import open_mitre_flow_window
 from filelock import FileLock, Timeout
 from PySide6.QtGui import QIcon
 from shiboken6 import isValid 
 from helper.windowsui import Ui_KanvasMainWindow
 from helper.system_type import SystemTypeManager
 from PySide6.QtGui import QFontDatabase
+from helper.search_bar import SearchBarWidget
 
 class CustomTreeItemDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.highlight_color = QColor(66, 139, 202, 50) 
-        self.important_color = QColor(220, 53, 69, 50)   
+        self.highlight_color = styles.COLOR_HIGHLIGHT_BG 
+        self.important_color = styles.COLOR_IMPORTANT_BG   
     def paint(self, painter, option, index):
         text = index.data(Qt.DisplayRole) or ""
         painter.save()
@@ -61,15 +68,15 @@ class CustomTreeItemDelegate(QStyledItemDelegate):
         if option.state & QStyle.State_Selected:
             painter.fillRect(rect, option.palette.highlight())
         elif option.state & QStyle.State_MouseOver:
-            painter.fillRect(rect, QColor(227, 242, 253, 100))  
+            painter.fillRect(rect, styles.COLOR_MOUSE_OVER_BG)  
         elif index.row() % 2 == 1:  
-            painter.fillRect(rect, QColor(248, 249, 250, 100))  
+            painter.fillRect(rect, styles.COLOR_ALTERNATE_ROW_BG)  
         text_rect = rect.adjusted(8, 4, -8, -4)
         important_keywords = ['critical', 'high', 'alert', 'error', 'failed', 'blocked']
         is_important = any(keyword.lower() in text.lower() for keyword in important_keywords)
         
         if is_important:
-            painter.setPen(QColor(220, 53, 69))  
+            painter.setPen(styles.COLOR_IMPORTANT_TEXT)  
             font = painter.font()
             font.setBold(True)
             painter.setFont(font)
@@ -125,14 +132,17 @@ class MainApp:
         self.window = self.load_ui()
         self.window.closeEvent = self.closeEvent
         self.evidence_type_manager = EvidenceTypeManager(self.db_path, self.window)
+        from helper.reporting.report_engine import ReportEngine
+        self.report_engine = ReportEngine(self.window, self.db_path)
         self.current_workbook = None
         self.current_file_path = None
         self.current_sheet_name = None
+        self.proxy_model = None
+        self.search_bar = None
         self.splash.showMessage("Connecting UI elements...", Qt.AlignBottom | Qt.AlignCenter, QColor(255, 255, 255))
         self.app.processEvents()
         self.connect_ui_elements()
         QTimer.singleShot(1000, self.finish_loading)
-        QTimer.singleShot(2000, self.preload_mitre_flow)
 
     def get_monospace_font(self):
         if sys.platform == "darwin": 
@@ -159,19 +169,6 @@ class MainApp:
     def finish_loading(self):
         self.window.showMaximized()
         self.splash.finish(self.window)
-    
-    def preload_mitre_flow(self):
-        try:
-            self.logger.info("Starting MITRE Flow background preloading")
-            window = open_mitre_flow_window(self.window)
-            if window:
-                self.mitre_flow_window = window
-                window.hide()
-                self.logger.info("MITRE Flow window preloaded successfully")
-            else:
-                self.logger.warning("MITRE Flow window preloading failed")
-        except Exception as e:
-            self.logger.error(f"Error preloading MITRE Flow window: {str(e)}")
     def get_lock_path(self, excel_path):
         return f"{excel_path}.lock"
     def acquire_file_lock(self, file_path):
@@ -214,7 +211,7 @@ class MainApp:
                 self.mitre_flow_window.close()
                 self.mitre_flow_window = None
             except Exception as e:
-                self.logger.error(f"Error closing preloaded MITRE Flow window: {e}")
+                self.logger.error(f"Error closing MITRE Flow window: {e}")
         for window in self.child_windows:
             if window and hasattr(window, 'setEnabled'):
                 window.setEnabled(False)
@@ -256,6 +253,8 @@ class MainApp:
             self.tree_view.doubleClicked.connect(self.edit_row)
             self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
             self.tree_view.customContextMenuRequested.connect(self.show_context_menu)
+            # Add search bar above tree view
+            self.setup_search_bar()
         else:
             self.logger.warning("treeViewMain not found!")
         self.connect_button("left_button_2", self.handle_veris_window)
@@ -276,8 +275,8 @@ class MainApp:
         self.connect_button("left_button_17", self.display_event_id_kb)
         self.connect_button("left_button_13", self.entra_appid)
         self.connect_button("left_button_14", self.handle_cve_lookup)
-        self.connect_button("left_button_20", self.handle_chat_bot)
         self.connect_button("left_button_21", self.handle_mitre_flow)
+        self.connect_button("left_button_23", self.handle_report_builder)
         self.connect_button("left_button_22", self.handle_email_lookup)
         self.connect_button("down_button_1", self.add_new_row)  
         self.connect_button("down_button_2", self.delete_row)   
@@ -326,124 +325,7 @@ class MainApp:
             return "font-size: 10pt; font-family: 'Ubuntu', 'DejaVu Sans', Arial, sans-serif;"
     def apply_treeview_styling(self):
         font_settings = self.get_platform_font_settings()
-        modern_style = """
-        QTreeView {{
-            background-color: #ffffff;
-            alternate-background-color: #f8f9fa;
-            selection-background-color: #007acc;
-            selection-color: white;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            outline: none;
-            gridline-color: #e9ecef;
-            {}
-        }}
-
-        QTreeView::item {{
-            padding: 8px 12px;
-            border-bottom: 1px solid #f1f3f4;
-            min-height: 24px;
-        }}
-
-        QTreeView::item:hover {{
-            background-color: #e3f2fd;
-            color: #1976d2;
-        }}
-
-        QTreeView::item:selected {{
-            background-color: #007acc;
-            color: white;
-        }}
-
-        QTreeView::item:selected:hover {{
-            background-color: #005a9e;
-        }}
-
-        QTreeView::branch {{
-            background: transparent;
-        }}
-
-        QTreeView::branch:has-children:!has-siblings:closed,
-        QTreeView::branch:closed:has-children:has-siblings {{
-            image: none;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-top: 5px solid #666666;
-            width: 0px;
-            height: 0px;
-        }}
-
-        QTreeView::branch:open:has-children:!has-siblings,
-        QTreeView::branch:open:has-children:has-siblings {{
-            image: none;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-bottom: 5px solid #666666;
-            width: 0px;
-            height: 0px;
-        }}
-
-        QHeaderView::section {{
-            background-color: #f8f9fa;
-            color: #495057;
-            padding: 12px 16px;
-            border: none;
-            border-bottom: 2px solid #dee2e6;
-            border-right: 1px solid #e9ecef;
-            font-weight: bold;
-            font-size: 10pt;
-        }}
-
-        QHeaderView::section:hover {{
-            background-color: #e9ecef;
-        }}
-
-        QHeaderView::section:pressed {{
-            background-color: #dee2e6;
-        }}
-
-        QScrollBar:vertical {{
-            background-color: #f8f9fa;
-            width: 12px;
-            border-radius: 6px;
-        }}
-
-        QScrollBar::handle:vertical {{
-            background-color: #cbd5e0;
-            border-radius: 6px;
-            min-height: 20px;
-        }}
-
-        QScrollBar::handle:vertical:hover {{
-            background-color: #a0aec0;
-        }}
-
-        QScrollBar::add-line:vertical,
-        QScrollBar::sub-line:vertical {{
-            height: 0px;
-        }}
-
-        QScrollBar:horizontal {{
-            background-color: #f8f9fa;
-            height: 12px;
-            border-radius: 6px;
-        }}
-
-        QScrollBar::handle:horizontal {{
-            background-color: #cbd5e0;
-            border-radius: 6px;
-            min-width: 20px;
-        }}
-
-        QScrollBar::handle:horizontal:hover {{
-            background-color: #a0aec0;
-        }}
-
-        QScrollBar::add-line:horizontal,
-        QScrollBar::sub-line:horizontal {{
-            width: 0px;
-        }}
-        """.format(font_settings)
+        modern_style = styles.TREE_VIEW_MODERN_STYLE_TEMPLATE.format(font_settings)
         self.tree_view.setStyleSheet(modern_style)
     
     def configure_treeview_properties(self):
@@ -478,63 +360,7 @@ class MainApp:
         else:  
             font_settings = "font-size: 9pt; font-family: 'Ubuntu', 'DejaVu Sans', Arial, sans-serif;"
             
-        standard_style = """
-        QTreeView {{
-            background-color: #ffffff;
-            alternate-background-color: #f8f9fa;
-            selection-background-color: #007acc;
-            selection-color: white;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            gridline-color: #e9ecef;
-            {}
-        }}
-        QTreeView::item {{
-            padding: 6px 10px;
-            border-bottom: 1px solid #f1f3f4;
-            min-height: 22px;
-        }}
-        QTreeView::item:hover {{
-            background-color: #e3f2fd;
-            color: #1976d2;
-        }}
-        QTreeView::item:selected {{
-            background-color: #007acc;
-            color: white;
-        }}
-        QTreeView::item:selected:hover {{
-            background-color: #005a9e;
-        }}
-        QHeaderView::section {{
-            background-color: #f8f9fa;
-            color: #495057;
-            padding: 10px 12px;
-            border: none;
-            border-bottom: 2px solid #dee2e6;
-            border-right: 1px solid #e9ecef;
-            font-weight: bold;
-            font-size: 9pt;
-        }}
-        QHeaderView::section:hover {{
-            background-color: #e9ecef;
-        }}
-        QHeaderView::section:pressed {{
-            background-color: #dee2e6;
-        }}
-        QScrollBar:vertical {{
-            background-color: #f8f9fa;
-            width: 10px;
-            border-radius: 5px;
-        }}
-        QScrollBar::handle:vertical {{
-            background-color: #cbd5e0;
-            border-radius: 5px;
-            min-height: 20px;
-        }}
-        QScrollBar::handle:vertical:hover {{
-            background-color: #a0aec0;
-        }}
-        """.format(font_settings)
+        standard_style = styles.TREE_VIEW_STANDARD_STYLE_TEMPLATE.format(font_settings)
         tree_view.setStyleSheet(standard_style)
         tree_view.setAlternatingRowColors(True)
         tree_view.setSelectionBehavior(QTreeView.SelectRows)
@@ -593,6 +419,9 @@ class MainApp:
         mitre_analysis_action = QAction("MITRE Mapping", self.tree_view)
         mitre_analysis_action.triggered.connect(self.handle_mitre_mapping)
         analysis_menu.addAction(mitre_analysis_action)
+        report_action = QAction("Generate Report...", self.tree_view)
+        report_action.triggered.connect(self.handle_report_builder)
+        analysis_menu.addAction(report_action)
         context_menu.exec(self.tree_view.mapToGlobal(position))
             
     def check_excel_loaded(self):
@@ -620,32 +449,32 @@ class MainApp:
         if self.check_excel_loaded():
             window = open_timeline_window(self.window)
             self.track_child_window(window)
+            self.track_child_window(window)
             
     def handle_download_updates(self):
         window = download_updates(self.window)
         self.track_child_window(window)
     
-    def handle_chat_bot(self):
-        try:
-            window = handle_chat_bot(self.window, self.db_path)
-            self.track_child_window(window)
-        except Exception as e:
-            self.logger.error(f"Error opening chat bot window: {str(e)}")
-            QMessageBox.critical(self.window, "Error", f"Failed to open LLM Assistance: {str(e)}")
-
     def handle_mitre_flow(self):
         try:
             if self.mitre_flow_window:
+                # Window already exists, just show it
                 self.mitre_flow_window.show()
                 self.mitre_flow_window.raise_()
                 self.mitre_flow_window.activateWindow()
                 self.logger.info("MITRE Flow window shown from cache")
             else:
+                # Create window and show it immediately
+                # The web view will load when the window is shown (via showEvent)
                 window = open_mitre_flow_window(self.window)
                 if window:
                     self.mitre_flow_window = window
                     self.track_child_window(window)
-                    self.logger.info("MITRE Flow window created and cached")
+                    # Show window immediately - web view loading is deferred to showEvent
+                    window.show()
+                    window.raise_()
+                    window.activateWindow()
+                    self.logger.info("MITRE Flow window created and shown")
         except Exception as e:
             self.logger.error(f"Error opening MITRE Attack Flow window: {str(e)}")
             QMessageBox.critical(self.window, "Error", f"Failed to open MITRE Attack Flow: {str(e)}")
@@ -670,7 +499,7 @@ class MainApp:
         custom_window.show()
     
     def open_api_settings(self):
-        open_api_settings(self.window, self.db_path, self.logger, self.child_windows)
+        open_api_settings(self.window, self.logger, self.child_windows)
 
     def open_new_case_window(self):
         file_path, _ = QFileDialog.getSaveFileName(self.window, "Save New Case File", "New_Case.xlsx", "Excel files (*.xlsx)")
@@ -831,7 +660,14 @@ class MainApp:
                         sheet_progress.setFormat("Finalizing...")
                         QApplication.processEvents()
                     
-                    self.tree_view.setModel(model)
+                    # Use proxy model for filtering
+                    if self.proxy_model is None:
+                        self.proxy_model = QSortFilterProxyModel()
+                        self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
+                        self.proxy_model.setFilterKeyColumn(-1)  # Search all columns
+                    
+                    self.proxy_model.setSourceModel(model)
+                    self.tree_view.setModel(self.proxy_model)
                     self.tree_view.setEditTriggers( 
                         QTreeView.NoEditTriggers if self.read_only_mode else 
                         (QTreeView.DoubleClicked | QTreeView.EditKeyPressed | QTreeView.AnyKeyPressed)
@@ -951,78 +787,105 @@ class MainApp:
             cell_data = model.index(row_index, col).data()
             header_label = QLabel(f"{header_text}:")
             header_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            if header_text and header_text.strip().lower() == "visualize":
+            if header_text and header_text.strip().lower() == config.COL_VISUALIZE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Yes", "No"])
                 if cell_data in ["Yes", "No"]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box
-            elif header_text and header_text.strip().lower() == "evidencetype":
+            elif header_text and header_text.strip().lower() == config.COL_EVIDENCE_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(evidence_types)
                 if cell_data in evidence_types:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box
-            elif header_text and header_text.strip().lower() == "indicatortype":
+            elif header_text and header_text.strip().lower() == config.COL_INDICATOR_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["IPAddress","UserName","FileName","FilePath","UserAgent","DomainName","JA3-JA3S","URL","Mutex","Other-Strings","EmailAddress","RegistryPath","GPO"])
                 if cell_data in ["IPAddress","UserName","FileName","FilePath","UserAgent","DomainName","JA3-JA3S","URL","Mutex","Other-Strings","EmailAddress","RegistryPath","GPO"]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box
-            elif header_text and header_text.strip().lower() == "location":
+            elif header_text and header_text.strip().lower() == config.COL_LOCATION.lower():
                 combo_box = QComboBox()
-                combo_box.addItems(["On-Prem", "Unknown", "Cloud-Generic", "Cloud-Azure", "Cloud-AWS", "Clous-GCP"])
-                if cell_data in ["On-Prem", "Unknown", "Cloud-Generic", "Cloud-Azure", "Cloud-AWS", "Clous-GCP"]:
+                combo_box.addItems(["On-Prem", "Unknown", "Cloud-Generic", "Cloud-Azure", "Cloud-AWS", "Clous-GCP", "3rd Party Applications - Cloud"])
+                if cell_data in ["On-Prem", "Unknown", "Cloud-Generic", "Cloud-Azure", "Cloud-AWS", "Clous-GCP", "3rd Party Applications - Cloud"]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box
-            elif header_text and header_text.strip().lower() == "currentstatus":
+            elif header_text and header_text.strip().lower() == config.COL_CURRENT_STATUS.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Completed" , "In Progress", "On Hold", "Not Started"  ])
                 if cell_data in ["Completed" , "In Progress", "On Hold", "Not Started"  ]:
                     combo_box.setCurrentText(cell_data)
-                input_field = combo_box
-            elif header_text and header_text.strip().lower() == "priority":
+                input_field = combo_box                
+            elif header_text and header_text.strip().lower() == config.COL_PRIORITY.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["High" ,"Medium" ,"Low" ])
                 if cell_data in ["High" ,"Medium" ,"Low" ]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box                
-            elif header_text and header_text.strip().lower() == "evidencecollected":
+            elif header_text and header_text.strip().lower() == config.COL_EVIDENCE_COLLECTED.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Yes", "No" ])
                 if cell_data in ["Yes", "No" ]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box                
-            elif header_text and header_text.strip().lower() == "targettype":
+            elif header_text and header_text.strip().lower() == config.COL_TARGET_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Machine", "Identity", "Others"])
                 if cell_data in ["Machine", "Identity", "Others"]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box               
-            elif header_text and header_text.strip().lower() == "systemtype":
+            elif header_text and header_text.strip().lower() == config.COL_SYSTEM_TYPE.lower():
                 combo_box = QComboBox()
                 system_type_options = self.system_type_manager.get_system_type_options()
                 combo_box.addItems([option[0] for option in system_type_options])
                 if cell_data in [option[0] for option in system_type_options]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box
-            elif header_text and header_text.strip().lower() == "accounttype":
+            elif header_text and header_text.strip().lower() == config.COL_ACCOUNT_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Normal User Account - Local","Normal User Account - On-Prem AD","Normal User Account - Azure","Service Account", "Domain Admin", "Global Admin - Azure", "Service Principle - Azure", "Computer Account", "Local Administrator"])
                 if cell_data in ["Normal User Account - Local","Normal User Account - On-Prem AD","Normal User Account - Azure","Service Account", "Domain Admin", "Global Admin - Azure", "Service Principle - Azure", "Computer Account", "Local Administrator"]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box
-            elif header_text and header_text.strip().lower() == "entrypoint":
+            elif header_text and header_text.strip().lower() == config.COL_ENTRY_POINT.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Yes", "No" ])
                 if cell_data in ["Yes", "No" ]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box               
-            elif header_text and (header_text.strip().lower() == "notes" or header_text.strip().lower() == "activity"):
+            elif header_text and (header_text.strip().lower() == config.COL_NOTES.lower() or header_text.strip().lower() == config.COL_ACTIVITY.lower()):
                 text_edit = QTextEdit()
                 text_edit.setPlainText(cell_data if cell_data else "")
                 input_field = text_edit
-            elif header_text and header_text.strip().lower() in ["date added", "date updated", "date completed", "date requested", "date received"]:
+            elif header_text and header_text.strip().lower() == config.COL_DATE_RECEIVED.lower() and self.current_sheet_name == config.SHEET_EVIDENCE_TRACKER:
+                date_received_container = QWidget()
+                date_received_layout = QHBoxLayout(date_received_container)
+                date_received_layout.setContentsMargins(0, 0, 0, 0)
+                date_not_received_cb = QCheckBox("Date not yet received")
+                date_received_edit = QDateEdit()
+                date_received_edit.setCalendarPopup(True)
+                date_received_edit.setDate(QDate.currentDate())
+                if not cell_data or not str(cell_data).strip():
+                    date_not_received_cb.setChecked(True)
+                    date_received_edit.setEnabled(False)
+                else:
+                    date_not_received_cb.setChecked(False)
+                    date_received_edit.setEnabled(True)
+                    try:
+                        date_received_edit.setDate(QDate.fromString(str(cell_data).strip(), "yyyy-MM-dd"))
+                    except Exception:
+                        pass
+                def toggle_date_received_edit(checked):
+                    date_received_edit.setEnabled(not checked)
+                date_not_received_cb.toggled.connect(toggle_date_received_edit)
+                date_received_layout.addWidget(date_not_received_cb)
+                date_received_layout.addWidget(date_received_edit)
+                grid_layout.addWidget(header_label, col, 0)
+                grid_layout.addWidget(date_received_container, col, 1)
+                input_fields.append(("date_received_optional", date_not_received_cb, date_received_edit))
+                continue
+            elif header_text and header_text.strip().lower() in [config.COL_DATE_ADDED.lower(), config.COL_DATE_UPDATED.lower(), config.COL_DATE_COMPLETED.lower(), config.COL_DATE_REQUESTED.lower(), config.COL_DATE_RECEIVED.lower()]:
                 date_edit = QDateEdit()
                 date_edit.setCalendarPopup(True)  
                 if cell_data:
@@ -1031,13 +894,13 @@ class MainApp:
                     except Exception as e:
                         self.logger.error(f"Error parsing date: {e}")
                 input_field = date_edit
-            elif header_text and header_text == "TLP":
+            elif header_text and header_text == config.COL_TLP:
                 combo_box = QComboBox()
                 combo_box.addItems(["TLP-Red", "TLP-Amber", "TLP-Green", "TLP-Clear"])
                 if cell_data in ["TLP-Red", "TLP-Amber", "TLP-Green", "TLP-Clear"]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box
-            elif header_text and header_text == "MITRE Tactic":
+            elif header_text and header_text == config.COL_MITRE_TACTIC:
                 existing_tactic_value = cell_data if cell_data else ""
                 combo_box = QComboBox()
                 combo_box.addItem("")  
@@ -1046,13 +909,13 @@ class MainApp:
                     combo_box.setCurrentText(existing_tactic_value)
                 mitre_tactic_combo = combo_box
                 input_field = combo_box
-            elif header_text and header_text == "MITRE Techniques":
+            elif header_text and header_text == config.COL_MITRE_TECHNIQUE:
                 existing_technique_value = cell_data if cell_data else ""
                 combo_box = QComboBox()
                 combo_box.addItem("")
                 mitre_technique_combo = combo_box
                 input_field = combo_box
-            elif header_text and header_text == "<->":
+            elif header_text and header_text == config.COL_DIRECTION:
                 combo_box = QComboBox()
                 combo_box.addItems([" ","->", "<-", "<->"])
                 if cell_data in [" ","->", "<-", "<->"]:
@@ -1110,7 +973,10 @@ class MainApp:
                 workbook = self.current_workbook
                 sheet = workbook[self.current_sheet_name]
                 for col, field in enumerate(input_fields):
-                    if isinstance(field, QComboBox):
+                    if isinstance(field, tuple) and len(field) == 3 and field[0] == "date_received_optional":
+                        _, checkbox, date_edit = field
+                        new_text = "" if checkbox.isChecked() else date_edit.date().toString("yyyy-MM-dd")
+                    elif isinstance(field, QComboBox):
                         new_text = field.currentText()
                     elif isinstance(field, QTextEdit):
                         new_text = field.toPlainText()
@@ -1137,7 +1003,8 @@ class MainApp:
     def display_event_id_kb(self):
         try:
             window = display_event_id_kb(self, self.db_path)
-            self.track_child_window(window)
+            if window is not None:
+                self.track_child_window(window)
         except Exception as e:
             self.logger.error(f"Error in display_event_id_kb: {e}")
             traceback.print_exc()
@@ -1146,7 +1013,8 @@ class MainApp:
     def display_lolbas_kb(self):
         try:
             window = display_lolbas_kb(self, self.db_path)
-            self.track_child_window(window)
+            if window is not None:
+                self.track_child_window(window)
         except Exception as e:
             self.logger.error(f"Error in display_lolbas_kb: {e}")
             traceback.print_exc()
@@ -1164,16 +1032,24 @@ class MainApp:
             self.logger.error(f"Error opening CVE lookup window: {e}")
             QMessageBox.critical(self.window, "Error", f"Failed to open CVE lookup window: {e}")
 
+    def handle_report_builder(self):
+        """Handle report builder dialog"""
+        if not self.check_excel_loaded():
+            return
+        
+        dialog = open_report_builder(self.window, self.report_engine, self.current_workbook, self.current_file_path)
+        dialog.exec()
+    
     def handle_stix_export(self):
         if not self.check_excel_loaded():
             return
             
         try:
-            if 'Indicators' not in self.current_workbook.sheetnames:
+            if config.SHEET_INDICATORS not in self.current_workbook.sheetnames:
                 QMessageBox.warning(
                     self.window, 
                     "Warning", 
-                    "No 'Indicators' sheet found in the loaded Excel file.\n\n"
+                    f"No '{config.SHEET_INDICATORS}' sheet found in the loaded Excel file.\n\n"
                     "Please ensure your Excel file contains an 'Indicators' sheet with columns like:\n"
                     "- name\n"
                     "- description\n" 
@@ -1186,7 +1062,7 @@ class MainApp:
             try:
                 stix_bundle = convert_indicators_to_stix(
                     excel_file_path=self.current_file_path,
-                    sheet_name="Indicators"
+                    sheet_name=config.SHEET_INDICATORS
                 )
                 self.show_stix_json_window(stix_bundle)
                 
@@ -1301,11 +1177,23 @@ class MainApp:
     def handle_defend_mapping(self):
         if self.check_excel_loaded():
             try:
-                if 'Timeline' in self.current_workbook.sheetnames:
-                    window = open_defend_window(self.window, self.current_file_path)
-                    self.track_child_window(window)
-                else:
-                    QMessageBox.warning(self.window, "Missing Sheet", "The required 'Timeline' sheet was not found in this workbook.")
+                if config.SHEET_TIMELINE not in self.current_workbook.sheetnames:
+                    QMessageBox.warning(self.window, "Missing Sheet", f"The required '{config.SHEET_TIMELINE}' sheet was not found in this workbook.")
+                    return
+                
+                # Check for required columns in the Timeline sheet
+                timeline_sheet = self.current_workbook[config.SHEET_TIMELINE]
+                headers = [cell.value for cell in timeline_sheet[1]]
+                try:
+                    timestamp_col = headers.index(config.COL_TIMESTAMP)
+                    activity_col = headers.index(config.COL_ACTIVITY)
+                    tactic_col = headers.index(config.COL_MITRE_TACTIC)
+                except ValueError as e:
+                    QMessageBox.critical(self.window, "Error", f"Required columns not found in 'Timeline' sheet: {str(e)}")
+                    return
+                
+                window = open_defend_window(self.window, self.current_file_path)
+                self.track_child_window(window)
             except Exception as e:
                 self.logger.error(f"Error in D3FEND mapping: {e}")
                 QMessageBox.critical(self.window, "D3FEND Mapping Error", f"An error occurred while opening the D3FEND mapping window:\n\n{str(e)}")
@@ -1400,52 +1288,52 @@ class MainApp:
             header_label = QLabel(f"{header}:")
             header_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             grid_layout.addWidget(header_label, col, 0)
-            if header and header.strip().lower() == "visualize":
+            if header and header.strip().lower() == config.COL_VISUALIZE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Yes", "No"])
                 input_field = combo_box
-            elif header and header.strip().lower() == "evidencetype":
+            elif header and header.strip().lower() == config.COL_EVIDENCE_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(evidence_types)
                 input_field = combo_box
-            elif header and header.strip().lower() == "indicatortype":
+            elif header and header.strip().lower() == config.COL_INDICATOR_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["IPAddress","UserName","FileName","FilePath","UserAgent","DomainName","JA3-JA3S","URL","Mutex","Other-Strings","EmailAddress","RegistryPath","GPO"])
                 input_field = combo_box
-            elif header and header.strip().lower() == "accounttype":
+            elif header and header.strip().lower() == config.COL_ACCOUNT_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Normal User Account - Local","Normal User Account - On-Prem AD","Normal User Account - Azure","Service Account", "Domain Admin", "Global Admin - Azure", "Service Principle - Azure", "Computer Account", "Local Administrator"])
                 input_field = combo_box
-            elif header and header.strip().lower() == "systemtype":
+            elif header and header.strip().lower() == config.COL_SYSTEM_TYPE.lower():
                 combo_box = QComboBox()
                 system_type_options = self.system_type_manager.get_system_type_options()
                 combo_box.addItems([option[0] for option in system_type_options])
                 input_field = combo_box
-            elif header and header.strip().lower() == "location":
+            elif header and header.strip().lower() == config.COL_LOCATION.lower():
                 combo_box = QComboBox()
-                combo_box.addItems(["On-Prem", "Unknown", "Cloud-Generic", "Cloud-Azure", "Cloud-AWS", "Clous-GCP"])
+                combo_box.addItems(["On-Prem", "Unknown", "Cloud-Generic", "Cloud-Azure", "Cloud-AWS", "Clous-GCP", "3rd Party Applications - Cloud"])
                 input_field = combo_box
-            elif header and header.strip().lower() == "currentstatus":
+            elif header and header.strip().lower() == config.COL_CURRENT_STATUS.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Completed" , "In Progress", "On Hold", "Not Started"  ])
                 input_field = combo_box                
-            elif header and header.strip().lower() == "priority":
+            elif header and header.strip().lower() == config.COL_PRIORITY.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["High" ,"Medium" ,"Low" ])
                 input_field = combo_box                
-            elif header and header.strip().lower() == "evidencecollected":
+            elif header and header.strip().lower() == config.COL_EVIDENCE_COLLECTED.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Yes", "No" ])
                 input_field = combo_box                
-            elif header and header.strip().lower() == "entrypoint":
+            elif header and header.strip().lower() == config.COL_ENTRY_POINT.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Yes", "No" ])
                 input_field = combo_box                
-            elif header and header.strip().lower() == "targettype":
+            elif header and header.strip().lower() == config.COL_TARGET_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Machine", "Identity", "Others"])
                 input_field = combo_box                
-            elif header and (header.strip().lower() == "notes" or header.strip().lower() == "activity"):
+            elif header and (header.strip().lower() == config.COL_NOTES.lower() or header.strip().lower() == config.COL_ACTIVITY.lower()):
                 text_edit = QTextEdit()
                 input_field = text_edit
             elif header and "timestamp" in header.strip().lower() and "utc" in header.strip().lower():
@@ -1453,27 +1341,46 @@ class MainApp:
                 line_edit.setPlaceholderText("YYYY-MM-DD HH:MM:SS")
                 line_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
                 input_field = line_edit
-            elif header and header.strip().lower() in ["date added", "date updated", "date completed", "date requested", "date received"]:
+            elif header and header.strip().lower() == config.COL_DATE_RECEIVED.lower() and self.current_sheet_name == config.SHEET_EVIDENCE_TRACKER:
+                date_received_container = QWidget()
+                date_received_layout = QHBoxLayout(date_received_container)
+                date_received_layout.setContentsMargins(0, 0, 0, 0)
+                date_not_received_cb = QCheckBox("Date not yet received")
+                date_not_received_cb.setChecked(True)
+                date_received_edit = QDateEdit()
+                date_received_edit.setCalendarPopup(True)
+                date_received_edit.setDate(QDate.currentDate())
+                date_received_edit.setEnabled(False)
+                def toggle_date_received(checked):
+                    date_received_edit.setEnabled(not checked)
+                date_not_received_cb.toggled.connect(toggle_date_received)
+                date_received_layout.addWidget(date_not_received_cb)
+                date_received_layout.addWidget(date_received_edit)
+                grid_layout.addWidget(header_label, col, 0)
+                grid_layout.addWidget(date_received_container, col, 1)
+                input_fields.append(("date_received_optional", date_not_received_cb, date_received_edit))
+                continue
+            elif header and header.strip().lower() in [config.COL_DATE_ADDED.lower(), config.COL_DATE_UPDATED.lower(), config.COL_DATE_COMPLETED.lower(), config.COL_DATE_REQUESTED.lower(), config.COL_DATE_RECEIVED.lower()]:
                 date_edit = QDateEdit()
                 date_edit.setCalendarPopup(True)  
                 date_edit.setDate(QDate.currentDate())  
                 input_field = date_edit
-            elif header == "MITRE Tactic":
+            elif header == config.COL_MITRE_TACTIC:
                 combo_box = QComboBox()
                 combo_box.addItem("")  
                 combo_box.addItems(mitre_tactic_options)
                 mitre_tactic_combo = combo_box
                 input_field = combo_box
-            elif header == "MITRE Techniques":
+            elif header == config.COL_MITRE_TECHNIQUE:
                 combo_box = QComboBox()
                 combo_box.addItem("")  
                 mitre_technique_combo = combo_box
                 input_field = combo_box
-            elif header == "TLP":
+            elif header == config.COL_TLP:
                 combo_box = QComboBox()
                 combo_box.addItems(["TLP-Red", "TLP-Amber", "TLP-Green", "TLP-Clear"])
                 input_field = combo_box
-            elif header == "<->":
+            elif header == config.COL_DIRECTION:
                 combo_box = QComboBox()
                 combo_box.addItems([" ","->", "<-", "<->"])
                 input_field = combo_box
@@ -1521,7 +1428,10 @@ class MainApp:
                 sheet = self.current_workbook[self.current_sheet_name]
                 new_row_data = []
                 for field in input_fields:
-                    if isinstance(field, QComboBox):
+                    if isinstance(field, tuple) and len(field) == 3 and field[0] == "date_received_optional":
+                        _, checkbox, date_edit = field
+                        new_text = "" if checkbox.isChecked() else date_edit.date().toString("yyyy-MM-dd")
+                    elif isinstance(field, QComboBox):
                         new_text = field.currentText()
                     elif isinstance(field, QTextEdit):
                         new_text = field.toPlainText()
@@ -1621,13 +1531,75 @@ class MainApp:
                     row_data.append(str(cell_value) if cell_value is not None else "")
                 items = [QStandardItem(value) for value in row_data]
                 model.appendRow(items)
-            self.tree_view.setModel(model)
+            
+            # Use proxy model for filtering
+            if self.proxy_model is None:
+                self.proxy_model = QSortFilterProxyModel()
+                self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
+                self.proxy_model.setFilterKeyColumn(-1)  # Search all columns
+            
+            self.proxy_model.setSourceModel(model)
+            self.tree_view.setModel(self.proxy_model)
             self.tree_view.setEditTriggers(QTreeView.NoEditTriggers)
             for col_idx, header in enumerate(headers):
                 self.tree_view.setColumnWidth(col_idx, 100)
         except Exception as e:
             self.logger.error(f"Error loading sheet: {e}")
             QMessageBox.critical(self.window, "Error", f"Failed to load sheet: {e}")
+    
+    def setup_search_bar(self):
+        """Setup the search bar widget"""
+        try:
+            # Access the main panel layout from UI
+            if hasattr(self.window, 'ui') and hasattr(self.window.ui, 'mainPanelLayout'):
+                main_layout = self.window.ui.mainPanelLayout
+                
+                # Create search bar
+                self.search_bar = SearchBarWidget(self.window)
+                self.search_bar.setMaximumHeight(50)
+                self.search_bar.search_requested.connect(self.handle_quick_search)
+                
+                # Find tree view position in layout
+                tree_view_index = -1
+                for i in range(main_layout.count()):
+                    item = main_layout.itemAt(i)
+                    if item and item.widget() == self.tree_view:
+                        tree_view_index = i
+                        break
+                
+                if tree_view_index >= 0:
+                    # Insert search bar before tree view
+                    main_layout.insertWidget(tree_view_index, self.search_bar)
+                    self.logger.info("Search bar added successfully before tree view")
+                else:
+                    # Fallback: add at the beginning (tree view should be first item)
+                    main_layout.insertWidget(0, self.search_bar)
+                    self.logger.info("Search bar added at beginning (tree view position not found)")
+            else:
+                self.logger.warning("Could not find mainPanelLayout in UI. Search bar not added.")
+        except Exception as e:
+            self.logger.error(f"Error setting up search bar: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+    
+    def handle_quick_search(self, search_term: str, case_sensitive: bool):
+        """Handle quick search from search bar"""
+        if not self.proxy_model:
+            return
+        
+        if not search_term:
+            self.proxy_model.setFilterRegularExpression("")
+            return
+        
+        try:
+            flags = Qt.CaseSensitive if case_sensitive else Qt.CaseInsensitive
+            escaped_term = re.escape(search_term)
+            self.proxy_model.setFilterRegularExpression(escaped_term)
+            self.proxy_model.setFilterCaseSensitivity(flags)
+        except Exception as e:
+            self.logger.error(f"Error in quick search: {e}")
+            QMessageBox.warning(self.window, "Search Error", f"Search failed: {str(e)}")
+    
 
     def run(self):
         self.app.aboutToQuit.connect(self.application_cleanup)
@@ -1637,21 +1609,21 @@ class MainApp:
         if not self.current_workbook:
             QMessageBox.warning(self.window, "Warning", "No workbook loaded. Please load a workbook first.")
             return
-        if 'Timeline' not in self.current_workbook.sheetnames:
-            QMessageBox.warning(self.window, "Missing Sheet", "The 'Timeline' sheet was not found in the current workbook.")
+        if config.SHEET_TIMELINE not in self.current_workbook.sheetnames:
+            QMessageBox.warning(self.window, "Missing Sheet", f"The '{config.SHEET_TIMELINE}' sheet was not found in the current workbook.")
             return
         try:
-            sheet = self.current_workbook['Timeline']
+            sheet = self.current_workbook[config.SHEET_TIMELINE]
             event_system_col = None
             remote_system_col = None
             for col in range(1, sheet.max_column + 1):
                 header = sheet.cell(row=1, column=col).value
-                if header == "Event System":
+                if header == config.COL_EVENT_SYSTEM:
                     event_system_col = col
-                elif header == "Remote System":
+                elif header == config.COL_REMOTE_SYSTEM:
                     remote_system_col = col;
             if event_system_col is None and remote_system_col is None:
-                QMessageBox.warning(self.window, "Missing Columns", "Neither 'Event System' nor 'Remote System' columns found in the Timeline sheet.")
+                QMessageBox.warning(self.window, "Missing Columns", f"Neither '{config.COL_EVENT_SYSTEM}' nor '{config.COL_REMOTE_SYSTEM}' columns found in the Timeline sheet.")
                 return
             systems = set()
             for row in range(2, sheet.max_row + 1): 
@@ -1707,19 +1679,19 @@ class MainApp:
         if not self.current_workbook:
             QMessageBox.warning(self.window, "Warning", "No workbook loaded. Please load a workbook first.")
             return
-        if 'Timeline' not in self.current_workbook.sheetnames:
-            QMessageBox.warning(self.window, "Missing Sheet", "The 'Timeline' sheet was not found in the current workbook.")
+        if config.SHEET_TIMELINE not in self.current_workbook.sheetnames:
+            QMessageBox.warning(self.window, "Missing Sheet", f"The '{config.SHEET_TIMELINE}' sheet was not found in the current workbook.")
             return
         try:
-            sheet = self.current_workbook['Timeline']
+            sheet = self.current_workbook[config.SHEET_TIMELINE]
             suspect_account_col = None
             for col in range(1, sheet.max_column + 1):
                 header = sheet.cell(row=1, column=col).value
-                if header == "Suspect Account":
+                if header == config.COL_SUSPECT_ACCOUNT:
                     suspect_account_col = col
                     break
             if suspect_account_col is None:
-                QMessageBox.warning(self.window, "Missing Column", "'Suspect Account' column not found in the Timeline sheet.")
+                QMessageBox.warning(self.window, "Missing Column", f"'{config.COL_SUSPECT_ACCOUNT}' column not found in the Timeline sheet.")
                 return
             users = set()
             for row in range(2, sheet.max_row + 1):  
@@ -2097,26 +2069,91 @@ class MainApp:
     
     def setup_more_button_menu(self):
         more_button = getattr(self.window.ui, 'more_button', None)
-        if more_button and hasattr(more_button, 'menu') and more_button.menu():
-            menu = more_button.menu()
-            
-            msportals_action = QAction("Azure Portals", self.window)
+        if not more_button:
+            return
+        
+        try:
+            # Create new menu structure to avoid C++ object deletion issues
+            menu = QMenu(more_button)
+            event_id_action = menu.addAction("Event ID Reference- Win")
+            event_id_action.triggered.connect(self.display_event_id_kb)
+            sid_action = menu.addAction("Security Identifiers (SID) - Win")
+            sid_action.triggered.connect(self.display_windows_sid_kb)
+            menu.addSeparator()
+            lolbas_action = menu.addAction("Living of the land Binaries - Win")
+            lolbas_action.triggered.connect(self.display_lolbas_kb)           
+            loldrivers_action = menu.addAction("Living of the land Drivers - Win")
+            loldrivers_action.triggered.connect(self.display_loldrivers_kb)
+            lolesxi_action = menu.addAction("Living Off The Land ESXi")
+            lolesxi_action.triggered.connect(self.display_lolesxi_kb)
+            menu.addSeparator()
+            msportals_action = menu.addAction("Azure / Entra Web Portals")
             msportals_action.triggered.connect(self.display_msportals_data)
-            menu.addAction(msportals_action)
+            menu.addSeparator()
+            artifacts_action = menu.addAction("Forensics Artifacts location")
+            artifacts_action.triggered.connect(self.display_artifacts_kb)
+            hijacklibs_action = menu.addAction("DLL Sideloading - HijackLibs")
+            hijacklibs_action.triggered.connect(self.display_hijacklibs_kb)
             
-            for action in menu.actions():
-                if action.text() == "Windows - Event ID":
-                    action.triggered.connect(self.display_event_id_kb)
-                elif action.text() == "Windows - LOLBAS":
-                    action.triggered.connect(self.display_lolbas_kb)
+            # Set the new menu
+            more_button.setMenu(menu)
+            
+        except Exception as e:
+            self.logger.error(f"Error setting up more button menu: {e}")
     
     def display_msportals_data(self):
         try:
             window = display_msportals_data(self, self.db_path)
-            self.track_child_window(window)
+            if window is not None:
+                self.track_child_window(window)
         except Exception as e:
             self.logger.error(f"Error opening msportals data: {e}")
             QMessageBox.critical(self.window, "Error", f"Failed to open msportals data: {e}")
+    
+    def display_artifacts_kb(self):
+        try:
+            window = display_artifacts_kb(self, self.db_path)
+            if window is not None:
+                self.track_child_window(window)
+        except Exception as e:
+            self.logger.error(f"Error opening artifacts: {e}")
+            QMessageBox.critical(self.window, "Error", f"Failed to open artifacts: {e}")
+    
+    def display_hijacklibs_kb(self):
+        try:
+            window = display_hijacklibs_kb(self, self.db_path)
+            if window is not None:
+                self.track_child_window(window)
+        except Exception as e:
+            self.logger.error(f"Error opening hijacklibs: {e}")
+            QMessageBox.critical(self.window, "Error", f"Failed to open hijacklibs: {e}")
+    
+    def display_windows_sid_kb(self):
+        try:
+            window = display_windows_sid_kb(self, self.db_path)
+            if window is not None:
+                self.track_child_window(window)
+        except Exception as e:
+            self.logger.error(f"Error opening Windows SID: {e}")
+            QMessageBox.critical(self.window, "Error", f"Failed to open Windows SID: {e}")
+    
+    def display_lolesxi_kb(self):
+        try:
+            window = display_lolesxi_kb(self, self.db_path)
+            if window is not None:
+                self.track_child_window(window)
+        except Exception as e:
+            self.logger.error(f"Error opening LOLESXi: {e}")
+            QMessageBox.critical(self.window, "Error", f"Failed to open LOLESXi: {e}")
+    
+    def display_loldrivers_kb(self):
+        try:
+            window = display_loldrivers_kb(self, self.db_path)
+            if window is not None:
+                self.track_child_window(window)
+        except Exception as e:
+            self.logger.error(f"Error opening LOLDrivers: {e}")
+            QMessageBox.critical(self.window, "Error", f"Failed to open LOLDrivers: {e}")
         
     def close_all_windows(self):
         if hasattr(self, 'child_windows'):
@@ -2166,9 +2203,9 @@ class MainApp:
             try:
                 self.mitre_flow_window.close()
                 self.mitre_flow_window = None
-                self.logger.info("Preloaded MITRE Flow window cleaned up")
+                self.logger.info("MITRE Flow window cleaned up")
             except Exception as e:
-                self.logger.error(f"Error cleaning up preloaded MITRE Flow window: {e}")
+                self.logger.error(f"Error cleaning up MITRE Flow window: {e}")
         for window in self.child_windows[:]:
             try:
                 if window and isValid(window):  
