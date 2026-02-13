@@ -1,65 +1,38 @@
-# code reviewed 
-import sqlite3
+# Database utilities for Kanvas: create and manage SQLite tables (tor_list, bookmarks,
+# system_types, entra_appid, cisa_ran_exploit, etc.) used throughout the application.
+# Reviewed on 01/02/2026 by Jinto Antony
+
 import logging
+import sqlite3
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='kanvas.log')
 
-def create_table(db_path, table_name, table_schema):
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute(table_schema)
-        conn.commit()
-    except sqlite3.Error as e:
-        logger.error(f"Error creating table '{table_name}': {e}")
-    finally:
-        if conn:
-            conn.close()
-
-
-def create_all_tables(db_path):
-    create_table(db_path, "user_settings", """
-        CREATE TABLE IF NOT EXISTS user_settings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            VT_API_KEY TEXT,
-            SHODEN_API_KEY TEXT,
-            OTX_API_KEY TEXT,
-            openAI_API_KEY TEXT,
-            MISP_API_KEY TEXT,
-            OpenCTI_API_KEY TEXT,
-            urlscan_API_KEY TEXT,
-            vulners_API_KEY TEXT,
-            malpedia_API_KEY TEXT,
-            URLhaus_API_KEY TEXT,
-            IPQS_API_KEY TEXT,
-            HudonRock_API_KEY TEXT,
-            ANTHROPIC_API_KEY TEXT,
-            HIBP_API_KEY TEXT
-        )
-    """)
-
-
-    create_table(db_path, "tor_list", """
+TABLE_SCHEMAS = [
+    (
+        "tor_list",
+        """
         CREATE TABLE IF NOT EXISTS tor_list (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ipaddress_ TEXT UNIQUE,
             insert_date TEXT,
             source TEXT
         )
-    """)
-
-    create_table(db_path, "EvidenceType", """
+        """,
+    ),
+    (
+        "EvidenceType",
+        """
         CREATE TABLE IF NOT EXISTS EvidenceType (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             evidencetype TEXT,
             sort_order TEXT,
             source TEXT
         )
-    """)
-
-
-    create_table(db_path, "ms_portals", """
+        """,
+    ),
+    (
+        "ms_portals",
+        """
         CREATE TABLE IF NOT EXISTS ms_portals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_name TEXT,
@@ -67,9 +40,11 @@ def create_all_tables(db_path):
             source_file TEXT,
             primary_url TEXT
         )
-    """)
-
-    create_table(db_path, "bookmarks", """
+        """,
+    ),
+    (
+        "bookmarks",
+        """
         CREATE TABLE IF NOT EXISTS bookmarks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_name TEXT,
@@ -77,9 +52,11 @@ def create_all_tables(db_path):
             source_file TEXT,
             primary_url TEXT
         )
-    """)
-
-    create_table(db_path, "evtx_id", """
+        """,
+    ),
+    (
+        "evtx_id",
+        """
         CREATE TABLE IF NOT EXISTS evtx_id (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_id TEXT,
@@ -87,9 +64,11 @@ def create_all_tables(db_path):
             category TEXT,
             Provider TEXT
         )
-    """)
-
-    create_table(db_path, "entra_appid", """
+        """,
+    ),
+    (
+        "entra_appid",
+        """
         CREATE TABLE IF NOT EXISTS entra_appid (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             AppId TEXT,
@@ -98,18 +77,22 @@ def create_all_tables(db_path):
             Source TEXT,
             FileName TEXT
         )
-    """)
-
-    create_table(db_path, "mitre_techniques", """
+        """,
+    ),
+    (
+        "mitre_techniques",
+        """
         CREATE TABLE IF NOT EXISTS mitre_techniques (
             aid INTEGER PRIMARY KEY AUTOINCREMENT,
             PID TEXT,
             ID TEXT,
             Name TEXT
         )
-    """)
-
-    create_table(db_path, "mitre_tactics", """
+        """,
+    ),
+    (
+        "mitre_tactics",
+        """
         CREATE TABLE IF NOT EXISTS mitre_tactics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
@@ -118,9 +101,11 @@ def create_all_tables(db_path):
             created TEXT,
             modified TEXT
         )
-    """)
-
-    create_table(db_path, "system_types", """
+        """,
+    ),
+    (
+        "system_types",
+        """
         CREATE TABLE IF NOT EXISTS system_types (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
@@ -134,9 +119,11 @@ def create_all_tables(db_path):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
-
-    create_table(db_path, "icon_mappings", """
+        """,
+    ),
+    (
+        "icon_mappings",
+        """
         CREATE TABLE IF NOT EXISTS icon_mappings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             system_type_id INTEGER REFERENCES system_types(id),
@@ -146,9 +133,11 @@ def create_all_tables(db_path):
             is_active BOOLEAN DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
-
-    create_table(db_path, "defend", """
+        """,
+    ),
+    (
+        "defend",
+        """
         CREATE TABLE IF NOT EXISTS defend (
             query_def_tech_label TEXT,
             top_def_tech_label TEXT,
@@ -177,9 +166,11 @@ def create_all_tables(db_path):
             off_tactic_rel TEXT,
             off_tactic TEXT
         )
-    """)
-
-    create_table(db_path, "cisa_ran_exploit", """
+        """,
+    ),
+    (
+        "cisa_ran_exploit",
+        """
         CREATE TABLE IF NOT EXISTS cisa_ran_exploit (
             cveID TEXT,
             vendorProject TEXT,
@@ -187,4 +178,25 @@ def create_all_tables(db_path):
             vulnerabilityName TEXT,
             knownRansomwareCampaignUse TEXT
         )
-    """)
+        """,
+    ),
+]
+
+
+def create_table(db_path, table_name, table_schema):
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(table_schema)
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.error("Error creating table '%s': %s", table_name, e)
+    finally:
+        if conn:
+            conn.close()
+
+
+def create_all_tables(db_path):
+    for table_name, schema in TABLE_SCHEMAS:
+        create_table(db_path, table_name, schema)
