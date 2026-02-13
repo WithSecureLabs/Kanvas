@@ -64,6 +64,15 @@ SOD Spreadsheets/
 - 📌**MITRE D3FEND Mapping**: Helps map defense strategies based on the identified ATT&CK techniques. This is especially useful when responding to an incident from a defender’s perspective.
 - **V.E.R.I.S. Reporting**: Provides an interface to track VERIS data, which can be shared post-incident with various government entities and contribute to the Verizon Data Breach Report.
 
+### 📝 **One-Click Report Generation**
+
+- 📌**HTML report**: The report is generated as a single, self-contained HTML file. All images are Base64-encoded and embedded directly within the document, so there’s no need to manage or share separate image files, just one HTML file is all you need.
+- **Report Contemts**: Incident Timeline, Lateral Movement, Diamond Model, Investigation summary, Security recommendation and many more.
+
+>[!TIP]
+> The overall size of the HTML report may vary depending on the number of images included, particularly those used in the recommendation (.md) and the investigation summary (.md).
+
+
 ### 📑 **Knowledge Management**
 
 - **Bookmarks**: Offers a curated list of security tool, an up-to-date list of Microsoft portal URLs, and the ability to create custom investigation-specific bookmarks.
