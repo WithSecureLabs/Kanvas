@@ -68,7 +68,6 @@ SOD Spreadsheets/
 
 - **Bookmarks**: Offers a curated list of security tool, an up-to-date list of Microsoft portal URLs, and the ability to create custom investigation-specific bookmarks.
 - 📌**Markdown Editor**: Provides an interface to create and update Markdown documents—ideal for note-taking or loading investigative playbooks during investigations.
-- 📌**LLM Assaitance**: This taps into LLM APIs like OpenAI / Anthropic and you can save your own predefined prompts.
 - **Event ID Reference**: Consolidates Windows Event IDs in one place, organized by categories like persistence, lateral movement, and more—making it easy to cross-reference during investigations.
 - **Entra ID Reference**: Provides a searchable list of known and malicious Microsoft Entra ID AppIDs—useful for investigating Business Email Compromise (BEC) cases.
 - **Living Off the Land Binaries**: Provides a searchable list of known Microsoft living-off-the-land (LOLBAS) binaries that threat actors have abused.
