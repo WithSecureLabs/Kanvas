@@ -12,9 +12,9 @@
 ## ✨ Key Features
 
 ### 🎲 **Case Management**
-- **Built on the SOD (Spreadsheet of Doom)**: All data remains within the spreadsheet, making distribution and collaboration simple—even outside the application.
+- **Built on the SOD (Spreadsheet of Doom)**: All data remains within the spreadsheet, making distribution and collaboration simple - even outside the application.
 - **Multi-User support**: Files can reside on local machines or shared drives, enabling active collaboration among multiple investigators. File locking ensures that editing is properly managed and conflicts are avoided.
-- **One-Click Sanitize**: Allows spreadsheet data—such as domains, URLs, IP addresses, etc.—to be sanitized with a single click, making it easy to share and store.
+- **One-Click Sanitize**: Allows spreadsheet data - such as domains, URLs, IP addresses, etc. - to be sanitized with a single click, making it easy to share and store.
 
 > [!TIP]
 > The `SOD` template is slightly modified. Use the included `sod.xlsx` file from the package.
