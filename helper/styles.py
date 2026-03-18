@@ -12,6 +12,7 @@ from PySide6.QtGui import QColor
 MAIN_WINDOW_STYLE = """
     QMainWindow {
         background-color: #f0f0f0;
+        color: #333333;
     }
 """
 
@@ -148,6 +149,7 @@ TAB_WIDGET_STYLE = """
 COMBOBOX_STYLE = """
     QComboBox {
         background-color: white;
+        color: #333333;
         border: 1px solid #ccc;
         border-radius: 4px;
         padding: 4px 8px;
@@ -335,7 +337,7 @@ HTML_DANGER_COLOR = "#dc3545"
 HTML_SUCCESS_COLOR = "#28a745"
 
 # System type / inputs
-INPUT_LINE_STYLE = "padding: 8px; font-size: 11pt; border: 1px solid #ccc; border-radius: 4px;"
+INPUT_LINE_STYLE = "padding: 8px; font-size: 11pt; border: 1px solid #ccc; border-radius: 4px; color: #333333; background-color: #ffffff;"
 
 # Knowledge Base (KB) resources - shared text/tree/detail styles
 TEXT_EDIT_KB_DETAIL_DIALOG = """
