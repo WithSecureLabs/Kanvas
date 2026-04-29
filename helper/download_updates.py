@@ -18,6 +18,8 @@ import pandas as pd
 import requests
 import yaml
 from PySide6.QtCore import QObject, QThread, Signal
+
+from helper import bookmarks_data
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -279,7 +281,6 @@ class DownloadWorker(QObject):
                         ))
                 except Exception as e:
                     logger.error("Error processing %s: %s", file, e)
-            cursor.execute("DELETE FROM bookmarks WHERE group_name != 'Personal'")
             onetracker_csv = Path("onetracker.csv")
             bookmarks_columns = ['group_name', 'portal_name', 'source_file', 'primary_url']
             if onetracker_csv.exists():
@@ -289,23 +290,26 @@ class DownloadWorker(QObject):
                         if col not in df_bookmarks.columns:
                             df_bookmarks[col] = ""
                     df_bookmarks = df_bookmarks[bookmarks_columns]
+                    rows = []
+                    seen_placeholder = False
                     for _, row in df_bookmarks.iterrows():
-                        cursor.execute("SELECT COUNT(*) FROM bookmarks WHERE primary_url = ?", (row['primary_url'],))
-                        if cursor.fetchone()[0] == 0:
-                            cursor.execute('''
-                                INSERT INTO bookmarks (group_name, portal_name, source_file, primary_url)
-                                VALUES (?, ?, ?, ?)
-                            ''', (
-                                row['group_name'],
-                                row['portal_name'],
-                                row['source_file'],
-                                row['primary_url']
-                            ))
+                        r = {
+                            'group_name': row.get('group_name', ''),
+                            'portal_name': row.get('portal_name', ''),
+                            'source_file': row.get('source_file', ''),
+                            'primary_url': row.get('primary_url', ''),
+                        }
+                        if r['portal_name'] == 'PlaceHolder':
+                            if seen_placeholder:
+                                continue
+                            seen_placeholder = True
+                        rows.append(r)
+                    bookmarks_data.save_downloaded_bookmarks(rows)
+                    logger.info("Saved %d bookmarks to YAML", len(rows))
                 except Exception as e:
                     logger.error("Error processing %s: %s", onetracker_csv, e)
             else:
                 logger.warning("File %s does not exist, skipping.", onetracker_csv)
-            cursor.execute("DELETE FROM bookmarks WHERE portal_name = 'PlaceHolder' AND id NOT IN (SELECT MIN(id) FROM bookmarks WHERE portal_name = 'PlaceHolder')")
             cursor.execute("DELETE FROM defend")
             cursor.execute("DELETE FROM sqlite_sequence WHERE name='defend'")
             d3fend_csv = Path("d3fend-full-mappings.csv")

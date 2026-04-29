@@ -345,7 +345,7 @@ class Ui_KanvasMainWindow(object):
         self.left_button_19.setText(QCoreApplication.translate("KanvasMainWindow", u"Download Updates", None))
         self.labelVersion.setText(QCoreApplication.translate("KanvasMainWindow", u"K.a.n.v.a.s", None))
         self.labelVersion.setStyleSheet(QCoreApplication.translate("KanvasMainWindow", u"background-color: #E51448; color: white; text-align: center; font-family: Arial; font-size: 10pt; font-weight: normal;", None))
-        self.labelVersionNumber.setText(QCoreApplication.translate("KanvasMainWindow", u" Version 0.4.6", None))
+        self.labelVersionNumber.setText(QCoreApplication.translate("KanvasMainWindow", u" Version 0.4.7", None))
         self.labelVersionNumber.setStyleSheet(QCoreApplication.translate("KanvasMainWindow", u"color: white; text-align: center; font-family: Arial; font-size: 8pt; font-weight: normal;", None))
         self.down_button_1.setText(QCoreApplication.translate("KanvasMainWindow", u"Add New Entry", None))
         self.down_button_2.setText(QCoreApplication.translate("KanvasMainWindow", u"Delete Entry", None))

@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QFont, QPixmap
 from PySide6.QtCore import Qt, QRect, QSizeF
+from collections import Counter
 from datetime import datetime
 import csv
 import traceback
@@ -75,11 +76,17 @@ def open_timeline_window(window):
                                     activity_datetime = datetime.strptime(str(dt_val), "%Y-%m-%d %H:%M:%S")
                                 except ValueError:
                                     try:
-                                        activity_datetime = datetime.strptime(str(dt_val), "%Y-%m-%d")
-                                    except ValueError as e:
-                                        logger.warning(f"Row {row_idx}: Could not parse date '{dt_val}' with standard formats, skipping: {str(e)}")
-                                        skipped_rows += 1
-                                        continue
+                                        activity_datetime = datetime.strptime(str(dt_val), "%Y-%m-%d %H:%M:%S.%f")
+                                    except ValueError:
+                                        try:
+                                            activity_datetime = datetime.strptime(str(dt_val), "%Y-%m-%d %H:%M:%S:%f")
+                                        except ValueError:
+                                            try:
+                                                activity_datetime = datetime.strptime(str(dt_val), "%Y-%m-%d")
+                                            except ValueError as e:
+                                                logger.warning(f"Row {row_idx}: Could not parse date '{dt_val}' with standard formats, skipping: {str(e)}")
+                                                skipped_rows += 1
+                                                continue
                             except Exception as e:
                                 logger.warning(f"Row {row_idx}: Invalid date '{dt_val}' ({str(e)})")
                                 skipped_rows += 1
@@ -334,11 +341,18 @@ def open_timeline_window(window):
                     return
                 status_bar.setText("Exporting to CSV...")
                 timeline_window.repaint()
+                second_keys = [ts.replace(microsecond=0) for ts, *_ in timeline_activities]
+                second_counts = Counter(second_keys)
+                same_second_keys = {k for k, c in second_counts.items() if c > 1}
                 with open(file_path, 'w', newline='', encoding='utf-8') as csv_file:
                     csv_writer = csv.writer(csv_file)
                     csv_writer.writerow([config.COL_TIMESTAMP, config.COL_MITRE_TACTIC, config.COL_EVENT_SYSTEM, config.COL_ACTIVITY])
                     for timestamp, activity, mitre, event_system in timeline_activities:
-                        csv_writer.writerow([timestamp.strftime('%Y-%m-%d %H:%M:%S'), mitre, event_system, activity])
+                        if timestamp.replace(microsecond=0) in same_second_keys:
+                            ts_str = timestamp.strftime('%Y-%m-%d %H:%M:%S') + ".%03d" % (timestamp.microsecond // 1000)
+                        else:
+                            ts_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                        csv_writer.writerow([ts_str, mitre, event_system, activity])
                 status_bar.setText(f"Timeline exported to CSV: {file_path}")
                 QMessageBox.information(timeline_window, "Export Complete", f"Timeline exported to CSV: {file_path}")
             except PermissionError:

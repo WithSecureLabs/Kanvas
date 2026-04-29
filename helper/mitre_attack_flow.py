@@ -10,7 +10,7 @@ import subprocess
 from datetime import datetime
 from PySide6.QtWidgets import (
     QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QLabel,
-    QMessageBox, QApplication, QTextEdit, QSplitter, QFileDialog
+    QMessageBox, QApplication, QTextEdit, QSplitter, QFileDialog, QLineEdit,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import QUrl, Qt, QTimer
@@ -21,6 +21,8 @@ from helper import styles
 # ---------------------------------------------------------------------------
 # Section 1: Config (mitre_flow_config)
 # ---------------------------------------------------------------------------
+
+MITRE_ATTACK_FLOW_URL = "https://center-for-threat-informed-defense.github.io/attack-flow/ui/"
 
 PLATFORM_CONFIGS = {
     'windows': {
@@ -325,6 +327,7 @@ class MitreFlowWindowBase(QMainWindow):
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(5)
         main_layout.addLayout(self.create_header_layout())
+        main_layout.addLayout(self.create_url_bar_layout())
         main_layout.addWidget(self.create_web_view_splitter())
         main_layout.addWidget(self.create_status_label())
         self.setup_shortcuts()
@@ -348,6 +351,21 @@ class MitreFlowWindowBase(QMainWindow):
         close_button.clicked.connect(self.close)
         header_layout.addWidget(close_button)
         return header_layout
+
+    def create_url_bar_layout(self):
+        """Layout showing the Attack Flow source URL (read-only, selectable)."""
+        url_layout = QHBoxLayout()
+        url_layout.setContentsMargins(0, 2, 0, 2)
+        url_label = QLabel("URL:")
+        url_label.setStyleSheet("font-weight: bold; min-width: 32px;")
+        url_layout.addWidget(url_label)
+        self.url_display = QLineEdit()
+        self.url_display.setReadOnly(True)
+        self.url_display.setText(MITRE_ATTACK_FLOW_URL)
+        self.url_display.setPlaceholderText("Attack Flow source URL")
+        self.url_display.setStyleSheet("background: #f0f0f0; padding: 4px; border: 1px solid #ccc;")
+        url_layout.addWidget(self.url_display, 1)
+        return url_layout
 
     def create_web_view_splitter(self):
         splitter = QSplitter(Qt.Vertical)
@@ -410,7 +428,7 @@ class MitreFlowWindowBase(QMainWindow):
         if self.web_view_initialized:
             return
         try:
-            url = "https://center-for-threat-informed-defense.github.io/attack-flow/ui/"
+            url = MITRE_ATTACK_FLOW_URL
             self.logger.info(f"Setting up web view with URL: {url}")
             self.configure_web_settings()
             self.web_view.load(QUrl(url))
@@ -737,7 +755,9 @@ def get_platform_info():
         info["qtwebengine_available"] = False
     return info
 
-def open_in_system_browser(url="https://center-for-threat-informed-defense.github.io/attack-flow/ui/"):
+def open_in_system_browser(url=None):
+    if url is None:
+        url = MITRE_ATTACK_FLOW_URL
     try:
         webbrowser.open(url)
         return True
@@ -1100,7 +1120,7 @@ def open_mitre_flow_window_linux(parent=None):
     logger = get_platform_logger()
     logger.info("open_mitre_flow_window_linux called - Linux not supported")
     try:
-        message = "The MITRE Attack Flow feature is not supported on Linux systems.\n\nYou can access MITRE Attack Flow directly in your web browser at:\nhttps://center-for-threat-informed-defense.github.io/attack-flow/ui/\n\nWould you like to open this URL in your default browser?"
+        message = f"The MITRE Attack Flow feature is not supported on Linux systems.\n\nYou can access MITRE Attack Flow directly in your web browser at:\n{MITRE_ATTACK_FLOW_URL}\n\nWould you like to open this URL in your default browser?"
         reply = QMessageBox.question(
             parent,
             "MITRE Attack Flow - Linux Not Supported",
@@ -1110,12 +1130,12 @@ def open_mitre_flow_window_linux(parent=None):
         )
         if reply == QMessageBox.Yes:
             try:
-                webbrowser.open("https://center-for-threat-informed-defense.github.io/attack-flow/ui/")
+                webbrowser.open(MITRE_ATTACK_FLOW_URL)
                 QMessageBox.information(parent, "Browser Opened", "MITRE Attack Flow opened in your default browser.")
                 logger.info("MITRE Attack Flow opened in system browser")
             except Exception as browser_error:
                 logger.error(f"Failed to open browser: {browser_error}")
-                QMessageBox.critical(parent, "Browser Error", "Failed to open system browser. Please manually navigate to:\nhttps://center-for-threat-informed-defense.github.io/attack-flow/ui/")
+                QMessageBox.critical(parent, "Browser Error", f"Failed to open system browser. Please manually navigate to:\n{MITRE_ATTACK_FLOW_URL}")
         else:
             logger.info("User declined to open browser")
         return None

@@ -6,8 +6,10 @@ import logging
 import os
 import re
 import sys
+from pathlib import Path
 
 import markdown
+import yaml
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.tables import TableExtension
 from PySide6.QtCore import Qt, Slot
@@ -17,6 +19,8 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QHBoxLayout,
+    QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
@@ -39,13 +43,72 @@ LARGE_FILE_THRESHOLD = 100000
 editor_window_ref = None
 
 
+MARKDOWN_SETTINGS_YAML = Path(__file__).resolve().parent / "markdown_settings.yaml"
+
+
 def get_application_path():
     if getattr(sys, "frozen", False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _normalize_path(path):
+    """Normalize path for current OS (Windows, macOS, Linux)."""
+    if not path or not isinstance(path, str):
+        return ""
+    path = path.strip()
+    if not path:
+        return ""
+    return os.path.normpath(path)
+
+
+def load_markdown_folder():
+    """Return saved markdown folder path from YAML, or None if missing/invalid.
+    Paths are normalized for the current platform (Windows, macOS, Linux)."""
+    try:
+        if not MARKDOWN_SETTINGS_YAML.is_file():
+            return None
+        with open(MARKDOWN_SETTINGS_YAML, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        path = data.get("markdown_folder") if data else None
+        path = _normalize_path(path) if path else ""
+        if path and os.path.isdir(path):
+            return os.path.abspath(path)
+        return None
+    except (yaml.YAMLError, OSError) as e:
+        logger.warning("Could not load markdown folder from YAML: %s", e)
+        return None
+
+
+def save_markdown_folder(path):
+    """Save markdown folder path to YAML (cross-platform: Windows, macOS, Linux).
+    Path is normalized and stored as absolute for the current OS."""
+    try:
+        path = _normalize_path(path) if path else ""
+        if not path or not os.path.isdir(path):
+            return False
+        path = os.path.abspath(path)
+        data = {}
+        if MARKDOWN_SETTINGS_YAML.is_file():
+            try:
+                with open(MARKDOWN_SETTINGS_YAML, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+            except (yaml.YAMLError, OSError):
+                pass
+        data["markdown_folder"] = path
+        with open(MARKDOWN_SETTINGS_YAML, "w", encoding="utf-8") as f:
+            yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+        return True
+    except OSError as e:
+        logger.error("Could not save markdown folder to YAML: %s", e)
+        return False
+
+
 def get_markdown_folder_path():
+    """Return mapped markdown folder: saved path if valid, else default under app path."""
+    saved = load_markdown_folder()
+    if saved:
+        return saved
     return os.path.join(get_application_path(), MARKDOWN_FOLDER)
 
 
@@ -152,13 +215,6 @@ class MarkdownViewerEditor(QMainWindow):
         self.new_button.setStyleSheet(button_style)
         self.new_button.clicked.connect(self.create_new_file)
         button_layout.addWidget(self.new_button)
-        self.open_button = QPushButton("Open")
-        self.open_button.setMinimumWidth(80)
-        self.open_button.setMaximumWidth(80)
-        self.open_button.setMinimumHeight(30)
-        self.open_button.setStyleSheet(button_style)
-        self.open_button.clicked.connect(self.open_file)
-        button_layout.addWidget(self.open_button)
         self.save_button = QPushButton("Save")
         self.save_button.setMinimumWidth(80)
         self.save_button.setMaximumWidth(80)
@@ -174,6 +230,64 @@ class MarkdownViewerEditor(QMainWindow):
         self.save_as_button.clicked.connect(self.save_file_as)
         button_layout.addWidget(self.save_as_button)
         layout.addLayout(button_layout)
+        folder_row = QHBoxLayout()
+        folder_row.setContentsMargins(15, 0, 15, 10)
+        folder_row.setSpacing(10)
+        folder_label = QLabel("Mapped folder:")
+        folder_label.setStyleSheet("font-weight: bold;")
+        folder_row.addWidget(folder_label)
+        self.folder_path_edit = QLineEdit()
+        self.folder_path_edit.setReadOnly(True)
+        self.folder_path_edit.setPlaceholderText("Default: app path / markdown_files")
+        self.folder_path_edit.setText(get_markdown_folder_path())
+        self.folder_path_edit.setMinimumWidth(300)
+        self.folder_path_edit.setStyleSheet(styles.MARKDOWN_COMBOBOX_STYLE)
+        folder_row.addWidget(self.folder_path_edit, 1)
+        change_folder_button = QPushButton("Change...")
+        change_folder_button.setMinimumWidth(80)
+        change_folder_button.setMaximumWidth(80)
+        change_folder_button.setMinimumHeight(28)
+        change_folder_button.setStyleSheet(button_style)
+        change_folder_button.clicked.connect(self.change_markdown_folder)
+        folder_row.addWidget(change_folder_button)
+        layout.addLayout(folder_row)
+
+    @Slot()
+    def change_markdown_folder(self):
+        # Use an existing directory as start so the dialog works on Windows, macOS, Linux
+        start_dir = get_markdown_folder_path()
+        if not os.path.isdir(start_dir):
+            start_dir = os.path.dirname(start_dir) or get_application_path()
+        if not os.path.isdir(start_dir):
+            start_dir = ""
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Markdown Folder",
+            start_dir,
+            QFileDialog.ShowDirsOnly,
+        )
+        if path:
+            path = _normalize_path(path)
+            if not path or not os.path.isdir(path):
+                QMessageBox.warning(
+                    self,
+                    "Invalid Folder",
+                    "The selected path is not a valid directory.",
+                )
+                return
+            if save_markdown_folder(path):
+                self.folder_path_edit.setText(get_markdown_folder_path())
+                self.populate_markdown_files()
+                self.statusBar().showMessage(
+                    f"Mapped folder updated: {os.path.basename(path) or path}",
+                    3000,
+                )
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    "Could not save the folder location to settings.",
+                )
 
     def populate_markdown_files(self):
         try:
@@ -263,10 +377,6 @@ class MarkdownViewerEditor(QMainWindow):
         save_as_shortcut.setShortcut(QKeySequence.SaveAs)
         save_as_shortcut.triggered.connect(self.save_file_as)
         self.addAction(save_as_shortcut)
-        open_shortcut = QAction("Open", self)
-        open_shortcut.setShortcut(QKeySequence.Open)
-        open_shortcut.triggered.connect(self.open_file)
-        self.addAction(open_shortcut)
 
     def load_default_file(self):
         folder_exists, markdown_folder = self.ensure_markdown_folder_exists()
@@ -287,17 +397,6 @@ class MarkdownViewerEditor(QMainWindow):
             self.load_markdown_file(default_file)
         else:
             logger.info("No default file found")
-
-    @Slot()
-    def open_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open Markdown File",
-            "",
-            "Markdown Files (*.md);;All Files (*)",
-        )
-        if file_path:
-            self.load_markdown_file(file_path)
 
     def load_markdown_file(self, file_path):
         try:

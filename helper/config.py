@@ -20,6 +20,7 @@ COL_DIRECTION = "<->"
 COL_HOSTNAME = "HostName"
 COL_IP_ADDRESS = "IPAddress"
 COL_SYSTEM_TYPE = "SystemType"
+COL_REASON_FOR_LISTING = "Reason for Listing"
 
 # Visualization Column Headers & Values
 VAL_VISUALIZE_YES = "yes"
@@ -29,6 +30,9 @@ SHEET_INDICATORS = "Indicators"
 SHEET_ACCOUNTS = "Accounts"
 SHEET_EVIDENCE_TRACKER = "Evidence Tracker"
 SHEET_VERIS = "VERIS"
+
+# Accounts Sheet Column (UserName used for Suspect Account dropdown)
+COL_USERNAME = "UserName"
 
 # Additional Column Headers
 COL_SUSPECT_ACCOUNT = "Suspect Account"

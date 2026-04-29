@@ -1,14 +1,12 @@
 # Bookmarks Knowledge Base for Kanvas: display and manage bookmark categories from
-# the database, with add/modify/delete for Personal bookmarks; data sourced from oneTracker.org.
+# YAML files (bookmarks_downloaded.yaml, personal_bookmarks.yaml); data sourced from oneTracker.org.
 # Reviewed on 01/02/2026 by Jinto Antony
 
 import logging
-import sqlite3
 from collections import defaultdict
-from contextlib import contextmanager
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -24,76 +22,25 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from helper import bookmarks_data
+from helper import styles
+
 logger = logging.getLogger(__name__)
 
-PERSONAL_GROUP = "Personal"
-EXCLUDED_GROUP = "Microsoft Portals via msportals.io"
-BOOKMARKS_TABLE = "bookmarks"
+PERSONAL_GROUP = bookmarks_data.PERSONAL_GROUP
 DROPDOWN_WIDTH = 273
 DIALOG_WIDTH = 400
 DIALOG_HEIGHT = 150
 ONETRACKER_URL = "https://onetracker.org/tools"
 
 
-@contextmanager
-def db_connection(db_path, parent_window=None):
-    conn = None
-    try:
-        conn = sqlite3.connect(db_path)
-        yield conn
-    except sqlite3.Error as e:
-        logger.error("Database error: %s", e)
-        if parent_window:
-            QMessageBox.critical(
-                parent_window, "Database Error", f"Database error: {e}"
-            )
-        raise
-    finally:
-        if conn:
-            conn.close()
-
-
-def fetch_group_names(db_path, parent_window=None):
-    try:
-        with db_connection(db_path, parent_window) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT DISTINCT group_name FROM {BOOKMARKS_TABLE} "
-                "ORDER BY group_name"
-            )
-            groups = [
-                row[0] for row in cursor.fetchall()
-                if row[0] and row[0] != EXCLUDED_GROUP
-            ]
-            logger.info(
-                "Retrieved %d groups (excluding Microsoft Portals): %s",
-                len(groups),
-                groups,
-            )
-            return groups
-    except sqlite3.Error as e:
-        logger.error("Failed to fetch group names: %s", e)
-        return []
-
-
-def sort_groups_with_personal_first(group_names):
-    if PERSONAL_GROUP in group_names:
-        result = [PERSONAL_GROUP]
-        for g in group_names:
-            if g != PERSONAL_GROUP:
-                result.append(g)
-        return result
-    return group_names
-
-
-def display_bookmarks_kb(parent, db_path):
+def display_bookmarks_kb(parent, db_path=None):
     if hasattr(parent, "bookmarks_window") and parent.bookmarks_window is not None:
         parent.bookmarks_window.raise_()
         parent.bookmarks_window.activateWindow()
         return parent.bookmarks_window
 
-    group_names = fetch_group_names(db_path, parent.window)
-    sorted_group_names = sort_groups_with_personal_first(group_names)
+    sorted_group_names = bookmarks_data.get_group_names()
 
     parent.bookmarks_window = QWidget(parent.window)
     parent.bookmarks_window.setWindowTitle("Bookmarks")
@@ -126,8 +73,17 @@ def display_bookmarks_kb(parent, db_path):
     group_dropdown.addItems(sorted_group_names)
     group_dropdown.setFixedWidth(DROPDOWN_WIDTH)
     if PERSONAL_GROUP in sorted_group_names:
-        group_dropdown.setCurrentIndex(
-            sorted_group_names.index(PERSONAL_GROUP)
+        personal_idx = sorted_group_names.index(PERSONAL_GROUP)
+        group_dropdown.setCurrentIndex(personal_idx)
+        group_dropdown.setItemData(
+            personal_idx,
+            QColor(232, 245, 233),
+            Qt.ItemDataRole.BackgroundRole,
+        )
+        group_dropdown.setItemData(
+            personal_idx,
+            QColor(46, 125, 50),
+            Qt.ItemDataRole.ForegroundRole,
         )
     top_layout.addWidget(group_dropdown)
     top_layout.addStretch()
@@ -161,24 +117,18 @@ def display_bookmarks_kb(parent, db_path):
             if child.widget():
                 child.widget().deleteLater()
         try:
-            with db_connection(db_path, parent.bookmarks_window) as conn:
-                cursor = conn.cursor()
-                if selected_group:
-                    cursor.execute(
-                        f"SELECT group_name, portal_name, primary_url FROM "
-                        f"{BOOKMARKS_TABLE} WHERE group_name = ? "
-                        "ORDER BY portal_name",
-                        (selected_group,),
-                    )
-                else:
-                    cursor.execute(
-                        f"SELECT group_name, portal_name, primary_url FROM "
-                        f"{BOOKMARKS_TABLE} ORDER BY group_name, portal_name"
-                    )
-                rows = cursor.fetchall()
-                current_bookmarks = rows
-                logger.info("Retrieved %d bookmarks for display", len(rows))
-        except sqlite3.Error as e:
+            if selected_group:
+                name_url_list = bookmarks_data.get_bookmarks_for_group(
+                    selected_group
+                )
+                rows = [
+                    (selected_group, name, url) for name, url in name_url_list
+                ]
+            else:
+                rows = bookmarks_data.get_all_bookmarks_flat()
+            current_bookmarks = rows
+            logger.info("Retrieved %d bookmarks for display", len(rows))
+        except Exception as e:
             logger.error("Failed to retrieve bookmarks: %s", e)
             current_bookmarks = []
             return
@@ -196,10 +146,9 @@ def display_bookmarks_kb(parent, db_path):
             sorted(bookmarks_by_group.keys())
         ):
             group_header = QLabel(group_name)
-            font = QFont()
-            font.setBold(True)
-            font.setPointSize(11)
-            group_header.setFont(font)
+            group_header.setStyleSheet(
+                styles.LABEL_FONT_12PT + "; font-weight: bold; color: #2c3e50;"
+            )
             group_header.setContentsMargins(0, 0, 0, 0)
             content_layout.addWidget(group_header)
 
@@ -210,23 +159,34 @@ def display_bookmarks_kb(parent, db_path):
             for bookmark_name, url in bookmarks_by_group[group_name]:
                 link_widget = QWidget()
                 link_layout = QHBoxLayout(link_widget)
-                link_layout.setContentsMargins(5, 0, 5, 0)
-                link_layout.setSpacing(2)
+                link_layout.setContentsMargins(12, 4, 10, 4)
+                link_layout.setSpacing(10)
                 name_label = QLabel(f"{bookmark_name}:")
+                name_label.setFixedWidth(220)
                 name_label.setSizePolicy(
-                    QSizePolicy.Fixed, QSizePolicy.Fixed
+                    QSizePolicy.Fixed, QSizePolicy.Preferred
+                )
+                name_label.setStyleSheet(
+                    styles.LABEL_FONT_10PT
+                    + "; font-weight: bold; color: #2c3e50;"
                 )
                 link_layout.addWidget(name_label)
                 clean_url = url.rstrip(",")
                 url_label = QLabel(
-                    f"<a href='{clean_url}'>{clean_url}</a>"
+                    f"<a href='{clean_url}' style='color: #1976d2;'>{clean_url}</a>"
                 )
                 url_label.setTextFormat(Qt.RichText)
                 url_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
                 url_label.setOpenExternalLinks(True)
-                link_layout.addWidget(url_label)
-                link_widget.setMaximumHeight(18)
+                url_label.setStyleSheet(styles.LABEL_FONT_10PT)
+                url_label.setWordWrap(True)
+                link_layout.addWidget(url_label, 1)
+                link_widget.setMinimumHeight(26)
+                link_widget.setMaximumHeight(60)
                 content_layout.addWidget(link_widget)
+                row_spacer = QWidget()
+                row_spacer.setFixedHeight(4)
+                content_layout.addWidget(row_spacer)
 
             if group_idx < len(bookmarks_by_group) - 1:
                 separator = QWidget()
@@ -271,24 +231,20 @@ def display_bookmarks_kb(parent, db_path):
                 )
                 return
             try:
-                with db_connection(
-                    db_path, parent.bookmarks_window
-                ) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        f"INSERT INTO {BOOKMARKS_TABLE} "
-                        "(group_name, portal_name, primary_url) VALUES (?, ?, ?)",
-                        (PERSONAL_GROUP, name, url),
-                    )
-                    conn.commit()
-                    QMessageBox.information(
-                        parent.bookmarks_window,
-                        "Success",
-                        "Bookmark added successfully",
-                    )
-                    display_bookmarks(PERSONAL_GROUP)
-            except sqlite3.Error as e:
+                bookmarks_data.add_personal(name, url)
+                QMessageBox.information(
+                    parent.bookmarks_window,
+                    "Success",
+                    "Bookmark added successfully",
+                )
+                display_bookmarks(PERSONAL_GROUP)
+            except Exception as e:
                 logger.error("Failed to add bookmark: %s", e)
+                QMessageBox.critical(
+                    parent.bookmarks_window,
+                    "Error",
+                    f"Failed to save bookmark: {e}",
+                )
 
     def modify_bookmark():
         if group_dropdown.currentText() != PERSONAL_GROUP:
@@ -361,24 +317,20 @@ def display_bookmarks_kb(parent, db_path):
                 )
                 return
             try:
-                with db_connection(
-                    db_path, parent.bookmarks_window
-                ) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        f"UPDATE {BOOKMARKS_TABLE} SET portal_name = ?, "
-                        "primary_url = ? WHERE group_name = ? AND portal_name = ?",
-                        (name, url, PERSONAL_GROUP, old_name),
-                    )
-                    conn.commit()
-                    QMessageBox.information(
-                        parent.bookmarks_window,
-                        "Success",
-                        "Bookmark updated successfully",
-                    )
-                    display_bookmarks(PERSONAL_GROUP)
-            except sqlite3.Error as e:
+                bookmarks_data.update_personal(old_name, name, url)
+                QMessageBox.information(
+                    parent.bookmarks_window,
+                    "Success",
+                    "Bookmark updated successfully",
+                )
+                display_bookmarks(PERSONAL_GROUP)
+            except Exception as e:
                 logger.error("Failed to modify bookmark: %s", e)
+                QMessageBox.critical(
+                    parent.bookmarks_window,
+                    "Error",
+                    f"Failed to update bookmark: {e}",
+                )
 
     def delete_bookmark():
         if group_dropdown.currentText() != PERSONAL_GROUP:
@@ -433,28 +385,24 @@ def display_bookmarks_kb(parent, db_path):
         )
         if confirm == QMessageBox.Yes:
             try:
-                with db_connection(
-                    db_path, parent.bookmarks_window
-                ) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        f"DELETE FROM {BOOKMARKS_TABLE} WHERE group_name = ? "
-                        "AND portal_name = ?",
-                        (PERSONAL_GROUP, selected_name),
-                    )
-                    conn.commit()
-                    logger.info(
-                        "Bookmark '%s' deleted successfully",
-                        selected_name,
-                    )
-                    QMessageBox.information(
-                        parent.bookmarks_window,
-                        "Success",
-                        "Bookmark deleted successfully",
-                    )
-                    display_bookmarks(PERSONAL_GROUP)
-            except sqlite3.Error as e:
+                bookmarks_data.delete_personal(selected_name)
+                logger.info(
+                    "Bookmark '%s' deleted successfully",
+                    selected_name,
+                )
+                QMessageBox.information(
+                    parent.bookmarks_window,
+                    "Success",
+                    "Bookmark deleted successfully",
+                )
+                display_bookmarks(PERSONAL_GROUP)
+            except Exception as e:
                 logger.error("Failed to delete bookmark: %s", e)
+                QMessageBox.critical(
+                    parent.bookmarks_window,
+                    "Error",
+                    f"Failed to delete bookmark: {e}",
+                )
 
     group_dropdown.currentTextChanged.connect(display_bookmarks)
     add_btn.clicked.connect(add_bookmark)

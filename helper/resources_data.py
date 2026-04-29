@@ -45,15 +45,19 @@ NO_DATA_MSG = "No data found. Please click 'Download Updates' to download the la
 
 
 def _has_msportals_data(db_path):
+    """Check if ms_portals table exists and has data (Azure/Entra from msportals.io JSON)."""
     if not db_path:
         return False
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bookmarks'")
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='ms_portals'"
+        )
         if not cursor.fetchone():
+            conn.close()
             return False
-        cursor.execute("SELECT 1 FROM bookmarks WHERE group_name LIKE '%Microsoft%' OR group_name LIKE '%Azure%' LIMIT 1")
+        cursor.execute("SELECT 1 FROM ms_portals LIMIT 1")
         has_row = cursor.fetchone() is not None
         conn.close()
         return has_row
@@ -163,34 +167,34 @@ def display_msportals_data(parent, db_path):
 
 
 def populate_msportals_data(tree_widget, db_path):
+    """Load Azure/Entra portals from ms_portals table (populated from msportals.io JSON)."""
     try:
         with db_connection(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT group_name, portal_name, primary_url
-                FROM bookmarks
-                WHERE group_name LIKE '%Microsoft%' OR group_name LIKE '%Azure%'
+                FROM ms_portals
                 ORDER BY group_name, portal_name
             """)
             rows = cursor.fetchall()
 
-            categories = defaultdict(list)
-            for group_name, portal_name, url in rows:
-                category = categorize_portal(group_name, portal_name)
-                categories[category].append((portal_name, url))
+        categories = defaultdict(list)
+        for group_name, portal_name, url in rows:
+            category = categorize_portal(group_name, portal_name)
+            categories[category].append((portal_name, url))
 
-            for category, portals in categories.items():
-                category_item = QTreeWidgetItem(tree_widget)
-                category_item.setText(0, category)
-                category_item.setFont(0, QFont("Arial", 10, QFont.Bold))
+        for category, portals in categories.items():
+            category_item = QTreeWidgetItem(tree_widget)
+            category_item.setText(0, category)
+            category_item.setFont(0, QFont("Arial", 10, QFont.Bold))
 
-                for portal_name, url in portals:
-                    portal_item = QTreeWidgetItem(category_item)
-                    portal_item.setText(0, portal_name)
-                    portal_item.setText(1, url)
-                    portal_item.setToolTip(1, f"Click to open: {url}")
+            for portal_name, url in portals:
+                portal_item = QTreeWidgetItem(category_item)
+                portal_item.setText(0, portal_name)
+                portal_item.setText(1, url)
+                portal_item.setToolTip(1, f"Click to open: {url}")
 
-                category_item.setExpanded(True)
+            category_item.setExpanded(True)
 
     except sqlite3.Error as e:
         logger.error("Failed to populate msportals data: %s", e)

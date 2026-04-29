@@ -1,5 +1,6 @@
-# Database utilities for Kanvas: create and manage SQLite tables (tor_list, bookmarks,
-# system_types, entra_appid, cisa_ran_exploit, etc.) used throughout the application.
+# Database utilities for Kanvas: create and manage SQLite tables (tor_list,
+# ms_portals, system_types, entra_appid, cisa_ran_exploit, etc.) used throughout
+# the application. Bookmarks are stored in YAML (helper/bookmarks_data.py).
 # Reviewed on 01/02/2026 by Jinto Antony
 
 import logging
@@ -34,18 +35,6 @@ TABLE_SCHEMAS = [
         "ms_portals",
         """
         CREATE TABLE IF NOT EXISTS ms_portals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_name TEXT,
-            portal_name TEXT,
-            source_file TEXT,
-            primary_url TEXT
-        )
-        """,
-    ),
-    (
-        "bookmarks",
-        """
-        CREATE TABLE IF NOT EXISTS bookmarks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_name TEXT,
             portal_name TEXT,
@@ -197,6 +186,64 @@ def create_table(db_path, table_name, table_schema):
             conn.close()
 
 
+def _migrate_bookmarks_to_yaml_and_drop(db_path):
+    """If bookmarks table exists, migrate ALL rows to YAML (downloaded + Personal) then drop table."""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='bookmarks'"
+        )
+        if not cursor.fetchone():
+            conn.close()
+            return
+        cursor.execute(
+            "SELECT group_name, portal_name, source_file, primary_url FROM bookmarks"
+        )
+        all_rows = cursor.fetchall()
+        conn.close()
+
+        from helper import bookmarks_data
+
+        personal = [
+            {"portal_name": r[1], "primary_url": r[3]}
+            for r in all_rows
+            if (r[0] or "").strip() == "Personal"
+        ]
+        downloaded = [
+            {
+                "group_name": r[0] or "",
+                "portal_name": r[1] or "",
+                "source_file": r[2] or "",
+                "primary_url": r[3] or "",
+            }
+            for r in all_rows
+            if (r[0] or "").strip() != "Personal"
+        ]
+        if downloaded and not bookmarks_data.load_downloaded():
+            bookmarks_data.save_downloaded_bookmarks(downloaded)
+            logger.info(
+                "Migrated %d downloaded bookmarks from DB to YAML",
+                len(downloaded),
+            )
+        if personal and not bookmarks_data.load_personal():
+            bookmarks_data.set_personal_bookmarks(personal)
+            logger.info(
+                "Migrated %d Personal bookmarks from DB to YAML",
+                len(personal),
+            )
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("DROP TABLE IF EXISTS bookmarks")
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name='bookmarks'")
+        conn.commit()
+        conn.close()
+        logger.info("Dropped bookmarks table (bookmarks now use YAML)")
+    except Exception as e:
+        logger.warning("Could not migrate/drop bookmarks table: %s", e)
+
+
 def create_all_tables(db_path):
     for table_name, schema in TABLE_SCHEMAS:
         create_table(db_path, table_name, schema)
+    _migrate_bookmarks_to_yaml_and_drop(db_path)
