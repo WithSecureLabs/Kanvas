@@ -1,0 +1,852 @@
+- group_name: Personal
+  portal_name: PlaceHolder
+  primary_url: PlaceHolder
+  source_file: PlaceHolder
+- group_name: Filesystem Forensics Tools
+  portal_name: Eric Zimmerman
+  primary_url: https://ericzimmerman.github.io
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Aftermath for MacOS
+  primary_url: https://github.com/jamf/aftermath
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Fox-IT Acquire
+  primary_url: https://github.com/fox-it/acquire
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Timesketch
+  primary_url: https://timesketch.org/
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: UAC
+  primary_url: https://github.com/tclahr/uac
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: FTK Imager
+  primary_url: https://www.exterro.com/digital-forensics-software/ftk-imager
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Fox-IT Dissect
+  primary_url: https://github.com/fox-it/dissect
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Kroll KAPE
+  primary_url: https://www.kroll.com/en-gb/services/cyber-risk/incident-response-litigation-support/kroll-artifact-parser-extractor-kape
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: OneDriveExplorer
+  primary_url: https://github.com/Beercow/OneDriveExplorer
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: TestDisk and PhotoRec
+  primary_url: https://www.cgsecurity.org/
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: SleuthKit
+  primary_url: https://www.sleuthkit.org/sleuthkit/download.php
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Plaso Log2Timeline
+  primary_url: https://github.com/log2timeline/plaso
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Autopsy
+  primary_url: https://www.sleuthkit.org/autopsy/
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Hindsight
+  primary_url: https://github.com/obsidianforensics/hindsight
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: AD Timeline
+  primary_url: https://github.com/ANSSI-FR/ADTimeline
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: IPED
+  primary_url: https://github.com/sepinf-inc/IPED
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: turbinia
+  primary_url: https://github.com/google/turbinia
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: KnockKnock
+  primary_url: https://objective-see.org/products/knockknock.html
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: bulk_extractor
+  primary_url: https://github.com/simsong/bulk_extractor
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: Meerkat
+  primary_url: https://github.com/TonyPhipps/Meerkat
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: docker-explorer
+  primary_url: https://github.com/google/docker-explorer
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: mac_apt for MacOS
+  primary_url: https://github.com/ydkhatri/mac_apt
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: SPECTR3
+  primary_url: https://github.com/alpine-sec/SPECTR3
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: artifactcollector
+  primary_url: https://github.com/forensicanalysis/artifactcollector
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: srum-dump
+  primary_url: https://github.com/MarkBaggett/srum-dump
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: chainbreaker
+  primary_url: https://github.com/n0fate/chainbreaker
+  source_file: onetracker
+- group_name: Filesystem Forensics Tools
+  portal_name: RegRipper3
+  primary_url: https://github.com/keydet89/RegRipper3.0
+  source_file: onetracker
+- group_name: Memory Forensics Tools
+  portal_name: MemProcFS
+  primary_url: https://github.com/ufrisk/MemProcFS
+  source_file: onetracker
+- group_name: Memory Forensics Tools
+  portal_name: Volatility3
+  primary_url: https://volatilityfoundation.org/the-volatility-framework/
+  source_file: onetracker
+- group_name: Memory Forensics Tools
+  portal_name: Microsoft AVML
+  primary_url: https://github.com/microsoft/avml
+  source_file: onetracker
+- group_name: Memory Forensics Tools
+  portal_name: Dump-It
+  primary_url: https://github.com/MagnetForensics/dumpit-linux
+  source_file: onetracker
+- group_name: Memory Forensics Tools
+  portal_name: WinPmem
+  primary_url: https://github.com/Velocidex/WinPmem
+  source_file: onetracker
+- group_name: Memory Forensics Tools
+  portal_name: LinPmem
+  primary_url: https://github.com/Velocidex/Linpmem
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: ZEEK
+  primary_url: https://zeek.org
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: Real Intelligence Threat Analytics - RITA
+  primary_url: https://github.com/activecm/rita
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: Arkime
+  primary_url: https://arkime.com/
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: IVRE
+  primary_url: https://ivre.rocks/
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: Wireshark
+  primary_url: https://www.wireshark.org/
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: Sniffnet
+  primary_url: https://sniffnet.net/
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: Malcolm
+  primary_url: https://cisagov.github.io/Malcolm/
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: kubeshark
+  primary_url: https://github.com/kubeshark/kubeshark
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: Dshell
+  primary_url: https://github.com/USArmyResearchLab/Dshell
+  source_file: onetracker
+- group_name: Network Forensics Tools
+  portal_name: Microsoft Network Monitor
+  primary_url: https://www.microsoft.com/en-gb/download/details.aspx?id=4865
+  source_file: onetracker
+- group_name: Living Off The Land (LOTL)
+  portal_name: Living Off The Land Binaries and Scripts (LOLBAS)
+  primary_url: https://lolbas-project.github.io
+  source_file: onetracker
+- group_name: Living Off The Land (LOTL)
+  portal_name: GTFOBins (Get The F* Out Binaries)
+  primary_url: https://gtfobins.github.io
+  source_file: onetracker
+- group_name: Living Off The Land (LOTL)
+  portal_name: Living Off The Land and Exploitation Active Directory
+  primary_url: https://lolad-project.github.io/
+  source_file: onetracker
+- group_name: Living Off The Land (LOTL)
+  portal_name: Living Off The Land Drivers
+  primary_url: https://www.loldrivers.io/
+  source_file: onetracker
+- group_name: Living Off The Land (LOTL)
+  portal_name: Living Off The Land Applications
+  primary_url: https://lolapps-project.github.io/
+  source_file: onetracker
+- group_name: Log Forensics Tools
+  portal_name: chainsaw
+  primary_url: https://github.com/WithSecureLabs/chainsaw
+  source_file: onetracker
+- group_name: Log Forensics Tools
+  portal_name: hayabusa
+  primary_url: https://github.com/Yamato-Security/hayabusa
+  source_file: onetracker
+- group_name: Log Forensics Tools
+  portal_name: DeepBlueCLI
+  primary_url: https://github.com/sans-blue-team/DeepBlueCLI
+  source_file: onetracker
+- group_name: Log Forensics Tools
+  portal_name: Zircolite
+  primary_url: https://github.com/wagga40/Zircolite
+  source_file: onetracker
+- group_name: Log Forensics Tools
+  portal_name: LogonTracer
+  primary_url: https://github.com/JPCERTCC/LogonTracer
+  source_file: onetracker
+- group_name: Log Forensics Tools
+  portal_name: Microsoft Log Parser
+  primary_url: https://www.microsoft.com/en-gb/download/details.aspx?id=24659
+  source_file: onetracker
+- group_name: Log Forensics Tools
+  portal_name: APT-Hunter
+  primary_url: https://github.com/ahmedkhlief/APT-Hunter
+  source_file: onetracker
+- group_name: Mobile Forenscis Tools
+  portal_name: MVT - Mobile Verification Toolkit
+  primary_url: https://docs.mvt.re/en/latest/
+  source_file: onetracker
+- group_name: Cloud Forensics Tools
+  portal_name: Microsoft-Extractor-Suite
+  primary_url: https://github.com/invictus-ir/Microsoft-Extractor-Suite
+  source_file: onetracker
+- group_name: Cloud Forensics Tools
+  portal_name: cloudgrep
+  primary_url: https://github.com/cado-security/cloudgrep
+  source_file: onetracker
+- group_name: Cloud Forensics Tools
+  portal_name: Google cloud-forensics-utils
+  primary_url: https://github.com/google/cloud-forensics-utils
+  source_file: onetracker
+- group_name: Cloud Forensics Tools
+  portal_name: Invictus-AWS
+  primary_url: https://github.com/invictus-ir/Invictus-AWS
+  source_file: onetracker
+- group_name: Cloud Forensics Tools
+  portal_name: hawk
+  primary_url: https://github.com/T0pCyber/hawk
+  source_file: onetracker
+- group_name: Cloud Forensics Tools
+  portal_name: Mirage
+  primary_url: https://github.com/SygniaLabs/Mirage
+  source_file: onetracker
+- group_name: Cloud Forensics Tools
+  portal_name: ALFA
+  primary_url: https://github.com/invictus-ir/ALFA
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: ghidra
+  primary_url: https://github.com/NationalSecurityAgency/ghidra
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: x64dbg
+  primary_url: https://x64dbg.com/
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: CAPA
+  primary_url: https://mandiant.github.io/capa/
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: FRIDA
+  primary_url: https://frida.re/
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: cutter
+  primary_url: https://cutter.re/
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: bindiff
+  primary_url: https://github.com/google/bindiff
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: IDA Free
+  primary_url: https://hex-rays.com/ida-free
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: radare2
+  primary_url: https://rada.re/n/radare2.html
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: Binary Ninja
+  primary_url: https://binary.ninja/free/
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: APKTool
+  primary_url: https://github.com/iBotPeaches/Apktool
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: ImHex
+  primary_url: https://github.com/WerWolv/ImHex
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: HxD
+  primary_url: https://mh-nexus.de/en/hxd/
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: PEBear
+  primary_url: https://hshrzd.wordpress.com/pe-bear/
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: pestudio
+  primary_url: https://www.winitor.com/download
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: systeminformer
+  primary_url: https://github.com/winsiderss/systeminformer
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: Process Explorer
+  primary_url: https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: qiling
+  primary_url: https://github.com/qilingframework/qiling
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: blint
+  primary_url: https://github.com/owasp-dep-scan/blint
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: DLest
+  primary_url: https://github.com/PhrozenIO/DLest
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: angr
+  primary_url: https://angr.io/
+  source_file: onetracker
+- group_name: Reverse Engineering Tools
+  portal_name: dnSpy
+  primary_url: https://github.com/dnSpy/dnSpy
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: netlas.io
+  primary_url: https://netlas.io/
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: dirsearch
+  primary_url: https://github.com/maurosoria/dirsearch
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: blackbird
+  primary_url: https://github.com/p1ngul1n0/blackbird
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: grayhatwarfare
+  primary_url: https://buckets.grayhatwarfare.com/
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: zoomEye
+  primary_url: https://www.zoomeye.ai/
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: zmap
+  primary_url: https://github.com/zmap/zmap
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: naabu
+  primary_url: https://github.com/projectdiscovery/naabu
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: katana
+  primary_url: https://github.com/projectdiscovery/katana
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: shodan
+  primary_url: https://www.shodan.io/
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: gitleaks
+  primary_url: https://github.com/gitleaks/gitleaks
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: subfinder
+  primary_url: https://github.com/projectdiscovery/subfinder
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: trufflehog
+  primary_url: https://github.com/trufflesecurity/trufflehog
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: S3Scanner
+  primary_url: https://github.com/sa7mon/S3Scanner
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: CloudBrute
+  primary_url: https://github.com/0xsha/CloudBrute
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: censys.io
+  primary_url: https://search.censys.io/
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: lookyloo
+  primary_url: https://github.com/Lookyloo/lookyloo
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: maltego basic
+  primary_url: https://www.maltego.com/pricing/
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: cloudlist
+  primary_url: https://github.com/projectdiscovery/cloudlist
+  source_file: onetracker
+- group_name: Attack Surface Discovery Tools
+  portal_name: httpx
+  primary_url: https://github.com/projectdiscovery/httpx
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: Have I Been Sold
+  primary_url: https://haveibeensold.app/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: PhishTank
+  primary_url: https://phishtank.org/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: haveibeensquatt?d
+  primary_url: https://haveibeensquatted.com/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: Intel owl
+  primary_url: https://intelowlproject.github.io/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: threatminer
+  primary_url: https://www.threatminer.org/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: ThreatLog
+  primary_url: https://www.threatlog.com/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: EchoTrail
+  primary_url: https://www.echotrail.io/insights
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: Yeti
+  primary_url: https://yeti-platform.io/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: BreachDirectory
+  primary_url: https://breachdirectory.org/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: IPStack
+  primary_url: https://ipstack.com/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: Have I Been Pwned
+  primary_url: https://haveibeenpwned.com/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: MISP
+  primary_url: https://www.misp-project.org/download/
+  source_file: onetracker
+- group_name: Threat Intelligence Tools
+  portal_name: Open-CTI
+  primary_url: https://github.com/OpenCTI-Platform/opencti
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: cvemap
+  primary_url: https://github.com/projectdiscovery/cvemap
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: cve.org
+  primary_url: https://www.cve.org/Downloads
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: SeeBug
+  primary_url: https://www.seebug.org/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: CVEdetails
+  primary_url: https://www.cvedetails.com/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: zeroday initiative
+  primary_url: https://www.zerodayinitiative.com/advisories/upcoming/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: Vulmon
+  primary_url: https://vulmon.com/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: VulDb
+  primary_url: https://vuldb.com/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: OSV
+  primary_url: https://osv.dev/list
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: Coalition Exploit Scoring System
+  primary_url: https://ess.coalitioninc.com/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: Zero-day Vulnerability Database
+  primary_url: https://www.zero-day.cz/database/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: Vulners
+  primary_url: https://vulners.com/search
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: Rapid7
+  primary_url: https://www.rapid7.com/db/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: Exploit-DB
+  primary_url: https://www.exploit-db.com/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: cxsecurity
+  primary_url: https://cxsecurity.com/
+  source_file: onetracker
+- group_name: Vulnerability Intelligence Tools
+  portal_name: inTheWild
+  primary_url: https://inthewild.io/feed
+  source_file: onetracker
+- group_name: Malware Sandbox Tools
+  portal_name: ThreatZone
+  primary_url: https://threat.zone/
+  source_file: onetracker
+- group_name: Malware Sandbox Tools
+  portal_name: joesandbox
+  primary_url: https://www.joesandbox.com
+  source_file: onetracker
+- group_name: Malware Sandbox Tools
+  portal_name: Noriben
+  primary_url: https://github.com/Rurik/Noriben
+  source_file: onetracker
+- group_name: Malware Sandbox Tools
+  portal_name: hybrid-analysis
+  primary_url: https://hybrid-analysis.com/
+  source_file: onetracker
+- group_name: Malware Sandbox Tools
+  portal_name: CAPEv2
+  primary_url: https://github.com/kevoreilly/CAPEv2
+  source_file: onetracker
+- group_name: Malware Sandbox Tools
+  portal_name: Any.Run
+  primary_url: https://any.run/
+  source_file: onetracker
+- group_name: Privacy  and Anonymizer tools
+  portal_name: HyPhanet
+  primary_url: https://www.hyphanet.org/
+  source_file: onetracker
+- group_name: Privacy  and Anonymizer tools
+  portal_name: I2P
+  primary_url: https://geti2p.net/en/
+  source_file: onetracker
+- group_name: Privacy  and Anonymizer tools
+  portal_name: TOR
+  primary_url: https://www.torproject.org/
+  source_file: onetracker
+- group_name: Privacy  and Anonymizer tools
+  portal_name: Tails
+  primary_url: https://tails.net/
+  source_file: onetracker
+- group_name: Threat Hunting Tools
+  portal_name: Google GRR
+  primary_url: https://github.com/google/grr
+  source_file: onetracker
+- group_name: Threat Hunting Tools
+  portal_name: Osquery
+  primary_url: https://osquery.io/
+  source_file: onetracker
+- group_name: Threat Hunting Tools
+  portal_name: Velociraptor
+  primary_url: https://docs.velociraptor.app/downloads/
+  source_file: onetracker
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft 365 Defender
+  primary_url: https://security.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender Multi-tenant
+  primary_url: https://mto.security.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Security Copilot
+  primary_url: https://securitycopilot.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender Threat Intelligence
+  primary_url: https://security.microsoft.com/intel-explorer
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender for Cloud Apps
+  primary_url: https://security.microsoft.com/cloudapps/policies/management
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender for Endpoints (MDE)
+  primary_url: https://securitycenter.windows.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender for Identity (MDI)
+  primary_url: https://security.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender for Internet of Things (IoT)
+  primary_url: https://portal.azure.com/#blade/Microsoft_Azure_IoT_Defender/IoTDefenderDashboard
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender API Explorer
+  primary_url: https://security.microsoft.com/interoperability/api-explorer
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender ATP Testground
+  primary_url: https://demo.wd.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Attack simulation training
+  primary_url: https://security.microsoft.com/attacksimulator
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Defender for Cloud (MDC)
+  primary_url: https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/0
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Secure Score
+  primary_url: https://security.microsoft.com/securescore
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Security Intelligence
+  primary_url: https://microsoft.com/wdsi
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Multi-factor authentication (MFA)
+  primary_url: https://account.activedirectory.windowsazure.com/usermanagement/multifactorverification.aspx
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft AccountGuard
+  primary_url: https://accountguard.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Office 365 Security & Compliance
+  primary_url: https://protection.office.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Entra ID Error Code Lookup
+  primary_url: https://login.microsoftonline.com/error
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Report an unsafe site (login)
+  primary_url: https://www.microsoft.com/en-us/wdsi/support/report-unsafe-site
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Report an unsafe site (guest)
+  primary_url: https://www.microsoft.com/en-us/wdsi/support/report-unsafe-site-guest
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Submit a file for malware analysis
+  primary_url: https://www.microsoft.com/en-us/wdsi/filesubmission
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Submit Vulnerability
+  primary_url: https://msrc.microsoft.com/report/vulnerability
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Reporting Infringement or DCMA Notice to Microsoft
+  primary_url: https://www.microsoft.com/en-us/legal/intellectualproperty/infringement
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Reporting Issue with Bingbot
+  primary_url: https://www.microsoft.com/en-us/legal/intellectualproperty/infringement
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Submit Abuse Report (CERT)
+  primary_url: https://msrc.microsoft.com/report/abuse
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Backup Center
+  primary_url: https://portal.azure.com/#blade/Microsoft_Azure_DataProtection/BackupCenterMenuBlade/overview
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Monitor
+  primary_url: https://portal.azure.com/#view/Microsoft_Azure_Monitoring/AzureMonitoringBrowseBlade/~/overview
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Privileged Identity Management
+  primary_url: https://portal.azure.com/#blade/Microsoft_Azure_PIMCommon/CommonMenuBlade/quickStart
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Sentinel
+  primary_url: https://portal.azure.com/#blade/Microsoft_Azure_Security_Insights/WorkspaceSelectorBlade
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Virtual Desktop
+  primary_url: https://portal.azure.com/#view/Microsoft_Azure_WVD/WvdManagerMenuBlade/~/overview
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Update Manager
+  primary_url: https://portal.azure.com/#view/Microsoft_Azure_Automation/UpdateCenterMenuBlade/~/gettingstarted
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Universal Print
+  primary_url: https://portal.azure.com/#blade/Universal_Print/MainMenuBlade/Overview
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft 365 Admin Center
+  primary_url: https://admin.cloud.microsoft
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft 365 Apps Admin Center
+  primary_url: https://config.office.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Exchange Admin Center (EAC)
+  primary_url: https://admin.cloud.microsoft/exchange#/homepage
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Intune Admin Center
+  primary_url: https://intune.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Stream Admin Center
+  primary_url: https://web.microsoftstream.com/admin
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Purview
+  primary_url: https://purview.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Teams Admin Center
+  primary_url: https://admin.teams.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Teams Rooms Pro Management portal
+  primary_url: https://portal.rooms.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: My Staff (preview)
+  primary_url: https://mystaff.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Power Apps Maker Portal
+  primary_url: https://make.powerapps.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Power Automate Maker Portal
+  primary_url: https://make.powerautomate.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Power BI Admin Portal
+  primary_url: https://app.powerbi.com/admin-portal/usageMetrics?noSignUpCheck=1
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Power Pages Preview
+  primary_url: https://make.powerpages.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Power Platform admin center
+  primary_url: https://admin.powerplatform.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Power Virtual Agents Portal
+  primary_url: https://powerva.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Phone Number Service Center
+  primary_url: https://pstnsd.powerappsportals.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: SharePoint Admin Center
+  primary_url: https://admin.microsoft.com/sharepoint
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Yammer Admin
+  primary_url: https://www.yammer.com/office365/admin
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: My Applications (My Apps)
+  primary_url: https://myapps.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: My Access
+  primary_url: https://myaccess.microsoft.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Azure Portal
+  primary_url: https://portal.azure.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Azure
+  primary_url: https://rc.portal.azure.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Azure
+  primary_url: https://preview.portal.azure.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure All Services
+  primary_url: https://portal.azure.com/#allservices
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Entra Admin Center
+  primary_url: https://entra.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Create New Tenant / Azure Active Directory
+  primary_url: https://account.azure.com/organization
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Cloud Shell
+  primary_url: https://shell.azure.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Cosmos DB
+  primary_url: https://cosmos.azure.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Cosmos DB - Connection string authentication
+  primary_url: https://cosmos.azure.com/sunset/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Data Factory
+  primary_url: https://adf.azure.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Synapse Analytics
+  primary_url: https://web.azuresynapse.net/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Non-profit Portal
+  primary_url: https://nonprofit.microsoft.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Microsoft Purview
+  primary_url: https://web.purview.azure.com/
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Resource Explorer
+  primary_url: https://resources.azure.com
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Azure Resource Explorer
+  primary_url: https://resources.azure.com/raw
+  source_file: msportals.io
+- group_name: Microsoft Portals via msportals.io
+  portal_name: Typespec Azure API playground (Explorer)
+  primary_url: https://azure.github.io/typespec-azure/playground
+  source_file: msportals.io
