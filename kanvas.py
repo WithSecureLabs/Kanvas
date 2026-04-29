@@ -592,6 +592,7 @@ class MainApp:
                 file_status_label.setText(f"Loaded: {file_name}{read_only_text}")
             else:
                 self.logger.warning("labelFileStatus not found!")
+            self._sync_evidence_types_from_workbook(workbook)
             sheet_dropdown = self.window.ui.comboBoxSheet
             if not sheet_dropdown:
                 if progress:
@@ -700,6 +701,40 @@ class MainApp:
             if lock_acquired and not workbook:  
                 self.release_file_lock()
                 
+    def _sync_evidence_types_from_workbook(self, workbook):
+        """Scan Timeline and Evidence Tracker sheets for EvidenceType column values;
+        insert any missing values into the EvidenceType SQLite table."""
+        if not workbook or not getattr(self, "evidence_type_manager", None):
+            return
+        ev_type_col_lower = config.COL_EVIDENCE_TYPE.strip().lower()
+        for sheet_name in (config.SHEET_TIMELINE, config.SHEET_EVIDENCE_TRACKER):
+            if sheet_name not in workbook.sheetnames:
+                continue
+            try:
+                sheet = workbook[sheet_name]
+                header_row = next(sheet.iter_rows(min_row=1, max_row=1), None)
+                if not header_row:
+                    continue
+                headers = [str(cell.value or "").strip() for cell in header_row]
+                col_idx = None
+                for i, h in enumerate(headers):
+                    if h.lower() == ev_type_col_lower:
+                        col_idx = i
+                        break
+                if col_idx is None:
+                    continue
+                values = set()
+                for row in sheet.iter_rows(min_row=2):
+                    if col_idx < len(row):
+                        v = str(row[col_idx].value or "").strip()
+                        if v:
+                            values.add(v)
+                for value in values:
+                    if not self.evidence_type_manager.evidence_type_exists(value):
+                        self.evidence_type_manager.add_evidence_type(value)
+            except Exception as e:
+                self.logger.warning("Error syncing EvidenceType from sheet %s: %s", sheet_name, e)
+
     def get_evidence_types_from_db(self):
         evidence_types = []
         try:
@@ -761,6 +796,45 @@ class MainApp:
         except sqlite3.Error as e:
             QMessageBox.critical(self.window, "Error", f"Failed to fetch MITRE values: {e}")
         evidence_types = self.get_evidence_types_from_db()
+        systems_options = []
+        if self.current_sheet_name == config.SHEET_TIMELINE and self.current_workbook and config.SHEET_SYSTEMS in self.current_workbook.sheetnames:
+            try:
+                sys_sheet = self.current_workbook[config.SHEET_SYSTEMS]
+                sys_headers = [cell.value for cell in sys_sheet[1]]
+                sys_headers = [str(h) if h else "" for h in sys_headers]
+                hostname_idx = sys_headers.index(config.COL_HOSTNAME) + 1 if config.COL_HOSTNAME in sys_headers else None
+                ip_idx = sys_headers.index(config.COL_IP_ADDRESS) + 1 if config.COL_IP_ADDRESS in sys_headers else None
+                if hostname_idx or ip_idx:
+                    seen_labels = set()
+                    for r in range(2, min(sys_sheet.max_row + 1, 500)):
+                        host_val = sys_sheet.cell(row=r, column=hostname_idx).value if hostname_idx else None
+                        ip_val = sys_sheet.cell(row=r, column=ip_idx).value if ip_idx else None
+                        label = None
+                        if host_val and str(host_val).strip():
+                            label = str(host_val).strip()
+                        elif ip_val and str(ip_val).strip():
+                            label = str(ip_val).strip()
+                        if label and label not in seen_labels:
+                            seen_labels.add(label)
+                            systems_options.append(label)
+            except Exception as e:
+                self.logger.error(f"Error building Systems options for edit Timeline editor: {e}")
+        accounts_options = []
+        if self.current_sheet_name == config.SHEET_TIMELINE and self.current_workbook and config.SHEET_ACCOUNTS in self.current_workbook.sheetnames:
+            try:
+                acc_sheet = self.current_workbook[config.SHEET_ACCOUNTS]
+                acc_headers = [cell.value for cell in acc_sheet[1]]
+                acc_headers = [str(h) if h else "" for h in acc_headers]
+                username_idx = acc_headers.index(config.COL_USERNAME) + 1 if config.COL_USERNAME in acc_headers else None
+                if username_idx:
+                    seen = set()
+                    for r in range(2, min(acc_sheet.max_row + 1, 500)):
+                        val = acc_sheet.cell(row=r, column=username_idx).value
+                        if val and str(val).strip() and str(val).strip() not in seen:
+                            seen.add(str(val).strip())
+                            accounts_options.append(str(val).strip())
+            except Exception as e:
+                self.logger.error(f"Error building Accounts options for edit Timeline editor: {e}")
         editor_widget = QWidget(self.window)
         editor_widget.setWindowTitle("Edit Row - Widget Editor")
         import sys
@@ -842,6 +916,85 @@ class MainApp:
                 if cell_data in [option[0] for option in system_type_options]:
                     combo_box.setCurrentText(cell_data)
                 input_field = combo_box
+            elif (
+                header_text
+                and header_text.strip().lower() in [config.COL_EVENT_SYSTEM.lower(), config.COL_REMOTE_SYSTEM.lower()]
+                and self.current_sheet_name == config.SHEET_TIMELINE
+                and systems_options
+            ):
+                system_container = QWidget()
+                system_layout = QHBoxLayout(system_container)
+                system_layout.setContentsMargins(0, 0, 0, 0)
+                use_systems_cb = QCheckBox("Use Systems sheet")
+                system_combo = QComboBox()
+                system_combo.addItem("")
+                system_combo.addItems(systems_options)
+                line_edit = QLineEdit()
+                line_edit.setText(cell_data if cell_data else "")
+                line_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+                # Pre-select from Systems sheet if current value matches an option
+                if cell_data and str(cell_data).strip() in systems_options:
+                    use_systems_cb.setChecked(True)
+                    system_combo.setCurrentText(str(cell_data).strip())
+                    system_combo.setEnabled(True)
+                    line_edit.setEnabled(False)
+                else:
+                    use_systems_cb.setChecked(False)
+                    system_combo.setEnabled(False)
+                    line_edit.setEnabled(True)
+
+                def toggle_use_systems_edit(checked, combo=system_combo, edit=line_edit):
+                    combo.setEnabled(checked)
+                    edit.setEnabled(not checked)
+
+                use_systems_cb.toggled.connect(toggle_use_systems_edit)
+                system_layout.addWidget(use_systems_cb)
+                system_layout.addWidget(system_combo)
+                system_layout.addWidget(line_edit)
+                grid_layout.addWidget(header_label, col, 0)
+                grid_layout.addWidget(system_container, col, 1)
+                input_fields.append(("system_selector", use_systems_cb, system_combo, line_edit))
+                continue
+            elif (
+                header_text
+                and header_text.strip().lower() == config.COL_SUSPECT_ACCOUNT.lower()
+                and self.current_sheet_name == config.SHEET_TIMELINE
+                and accounts_options
+            ):
+                account_container = QWidget()
+                account_layout = QHBoxLayout(account_container)
+                account_layout.setContentsMargins(0, 0, 0, 0)
+                use_accounts_cb = QCheckBox("Use Accounts sheet")
+                account_combo = QComboBox()
+                account_combo.addItem("")
+                account_combo.addItems(accounts_options)
+                line_edit = QLineEdit()
+                line_edit.setText(cell_data if cell_data else "")
+                line_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+                if cell_data and str(cell_data).strip() in accounts_options:
+                    use_accounts_cb.setChecked(True)
+                    account_combo.setCurrentText(str(cell_data).strip())
+                    account_combo.setEnabled(True)
+                    line_edit.setEnabled(False)
+                else:
+                    use_accounts_cb.setChecked(False)
+                    account_combo.setEnabled(False)
+                    line_edit.setEnabled(True)
+
+                def toggle_use_accounts_edit(checked, combo=account_combo, edit=line_edit):
+                    combo.setEnabled(checked)
+                    edit.setEnabled(not checked)
+
+                use_accounts_cb.toggled.connect(toggle_use_accounts_edit)
+                account_layout.addWidget(use_accounts_cb)
+                account_layout.addWidget(account_combo)
+                account_layout.addWidget(line_edit)
+                grid_layout.addWidget(header_label, col, 0)
+                grid_layout.addWidget(account_container, col, 1)
+                input_fields.append(("account_selector", use_accounts_cb, account_combo, line_edit))
+                continue
             elif header_text and header_text.strip().lower() == config.COL_ACCOUNT_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Normal User Account - Local","Normal User Account - On-Prem AD","Normal User Account - Azure","Service Account", "Domain Admin", "Global Admin - Azure", "Service Principle - Azure", "Computer Account", "Local Administrator"])
@@ -850,10 +1003,21 @@ class MainApp:
                 input_field = combo_box
             elif header_text and header_text.strip().lower() == config.COL_ENTRY_POINT.lower():
                 combo_box = QComboBox()
-                combo_box.addItems(["Yes", "No" ])
-                if cell_data in ["Yes", "No" ]:
+                combo_box.addItems(["Yes", "No", "Unknown"])
+                if cell_data in ["Yes", "No", "Unknown"]:
                     combo_box.setCurrentText(cell_data)
-                input_field = combo_box               
+                else:
+                    combo_box.setCurrentText("Unknown")
+                input_field = combo_box
+            elif header_text and header_text.strip().lower() == config.COL_REASON_FOR_LISTING.lower():
+                combo_box = QComboBox()
+                combo_box.addItem("")
+                combo_box.addItems(["Compromised"])
+                if cell_data is not None and str(cell_data).strip() in ["", "Compromised"]:
+                    combo_box.setCurrentText(str(cell_data).strip() if str(cell_data).strip() else "")
+                else:
+                    combo_box.setCurrentIndex(0)
+                input_field = combo_box
             elif header_text and (header_text.strip().lower() == config.COL_NOTES.lower() or header_text.strip().lower() == config.COL_ACTIVITY.lower()):
                 text_edit = QTextEdit()
                 text_edit.setPlainText(cell_data if cell_data else "")
@@ -973,7 +1137,13 @@ class MainApp:
                 workbook = self.current_workbook
                 sheet = workbook[self.current_sheet_name]
                 for col, field in enumerate(input_fields):
-                    if isinstance(field, tuple) and len(field) == 3 and field[0] == "date_received_optional":
+                    if isinstance(field, tuple) and len(field) == 4 and field[0] == "system_selector":
+                        _, checkbox, combo_box, line_edit = field
+                        new_text = combo_box.currentText().strip() if checkbox.isChecked() else line_edit.text()
+                    elif isinstance(field, tuple) and len(field) == 4 and field[0] == "account_selector":
+                        _, checkbox, combo_box, line_edit = field
+                        new_text = combo_box.currentText().strip() if checkbox.isChecked() else line_edit.text()
+                    elif isinstance(field, tuple) and len(field) == 3 and field[0] == "date_received_optional":
                         _, checkbox, date_edit = field
                         new_text = "" if checkbox.isChecked() else date_edit.date().toString("yyyy-MM-dd")
                     elif isinstance(field, QComboBox):
@@ -1263,6 +1433,45 @@ class MainApp:
         evidence_types = self.get_evidence_types_from_db()
         sheet = self.current_workbook[self.current_sheet_name]
         headers = [cell.value for cell in sheet[1]]  
+        systems_options = []
+        if self.current_sheet_name == config.SHEET_TIMELINE and config.SHEET_SYSTEMS in self.current_workbook.sheetnames:
+            try:
+                sys_sheet = self.current_workbook[config.SHEET_SYSTEMS]
+                sys_headers = [cell.value for cell in sys_sheet[1]]
+                sys_headers = [str(h) if h else "" for h in sys_headers]
+                hostname_idx = sys_headers.index(config.COL_HOSTNAME) + 1 if config.COL_HOSTNAME in sys_headers else None
+                ip_idx = sys_headers.index(config.COL_IP_ADDRESS) + 1 if config.COL_IP_ADDRESS in sys_headers else None
+                if hostname_idx or ip_idx:
+                    seen_labels = set()
+                    for r in range(2, min(sys_sheet.max_row + 1, 500)):
+                        host_val = sys_sheet.cell(row=r, column=hostname_idx).value if hostname_idx else None
+                        ip_val = sys_sheet.cell(row=r, column=ip_idx).value if ip_idx else None
+                        label = None
+                        if host_val and str(host_val).strip():
+                            label = str(host_val).strip()
+                        elif ip_val and str(ip_val).strip():
+                            label = str(ip_val).strip()
+                        if label and label not in seen_labels:
+                            seen_labels.add(label)
+                            systems_options.append(label)
+            except Exception as e:
+                self.logger.error(f"Error building Systems options for Timeline editor: {e}")
+        accounts_options = []
+        if self.current_sheet_name == config.SHEET_TIMELINE and config.SHEET_ACCOUNTS in self.current_workbook.sheetnames:
+            try:
+                acc_sheet = self.current_workbook[config.SHEET_ACCOUNTS]
+                acc_headers = [cell.value for cell in acc_sheet[1]]
+                acc_headers = [str(h) if h else "" for h in acc_headers]
+                username_idx = acc_headers.index(config.COL_USERNAME) + 1 if config.COL_USERNAME in acc_headers else None
+                if username_idx:
+                    seen = set()
+                    for r in range(2, min(acc_sheet.max_row + 1, 500)):
+                        val = acc_sheet.cell(row=r, column=username_idx).value
+                        if val and str(val).strip() and str(val).strip() not in seen:
+                            seen.add(str(val).strip())
+                            accounts_options.append(str(val).strip())
+            except Exception as e:
+                self.logger.error(f"Error building Accounts options for Timeline editor: {e}")
         add_row_window = QWidget(self.window)
         add_row_window.setWindowTitle("Add New Row - Widget Editor")
         import sys
@@ -1323,12 +1532,19 @@ class MainApp:
                 input_field = combo_box                
             elif header and header.strip().lower() == config.COL_EVIDENCE_COLLECTED.lower():
                 combo_box = QComboBox()
-                combo_box.addItems(["Yes", "No" ])
+                combo_box.addItems(["Yes", "No"])
+                combo_box.setCurrentText("No")
                 input_field = combo_box                
             elif header and header.strip().lower() == config.COL_ENTRY_POINT.lower():
                 combo_box = QComboBox()
-                combo_box.addItems(["Yes", "No" ])
+                combo_box.addItems(["Yes", "No", "Unknown"])
+                combo_box.setCurrentText("Unknown")
                 input_field = combo_box                
+            elif header and header.strip().lower() == config.COL_REASON_FOR_LISTING.lower():
+                combo_box = QComboBox()
+                combo_box.addItem("")
+                combo_box.addItems(["Compromised"])
+                input_field = combo_box
             elif header and header.strip().lower() == config.COL_TARGET_TYPE.lower():
                 combo_box = QComboBox()
                 combo_box.addItems(["Machine", "Identity", "Others"])
@@ -1338,9 +1554,67 @@ class MainApp:
                 input_field = text_edit
             elif header and "timestamp" in header.strip().lower() and "utc" in header.strip().lower():
                 line_edit = QLineEdit()
-                line_edit.setPlaceholderText("YYYY-MM-DD HH:MM:SS")
+                line_edit.setPlaceholderText("YYYY-MM-DD HH:MM:SS or HH:MM:SS:1/:2/:4")
                 line_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
                 input_field = line_edit
+            elif (
+                header
+                and header.strip().lower() in [config.COL_EVENT_SYSTEM.lower(), config.COL_REMOTE_SYSTEM.lower()]
+                and self.current_sheet_name == config.SHEET_TIMELINE
+                and systems_options
+            ):
+                system_container = QWidget()
+                system_layout = QHBoxLayout(system_container)
+                system_layout.setContentsMargins(0, 0, 0, 0)
+                use_systems_cb = QCheckBox("Use Systems sheet")
+                system_combo = QComboBox()
+                system_combo.addItem("")
+                system_combo.addItems(systems_options)
+                system_combo.setEnabled(False)
+                line_edit = QLineEdit()
+                line_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+                def toggle_use_systems(checked, combo=system_combo, edit=line_edit):
+                    combo.setEnabled(checked)
+                    edit.setEnabled(not checked)
+
+                use_systems_cb.toggled.connect(toggle_use_systems)
+                system_layout.addWidget(use_systems_cb)
+                system_layout.addWidget(system_combo)
+                system_layout.addWidget(line_edit)
+                grid_layout.addWidget(header_label, col, 0)
+                grid_layout.addWidget(system_container, col, 1)
+                input_fields.append(("system_selector", use_systems_cb, system_combo, line_edit))
+                continue
+            elif (
+                header
+                and header.strip().lower() == config.COL_SUSPECT_ACCOUNT.lower()
+                and self.current_sheet_name == config.SHEET_TIMELINE
+                and accounts_options
+            ):
+                account_container = QWidget()
+                account_layout = QHBoxLayout(account_container)
+                account_layout.setContentsMargins(0, 0, 0, 0)
+                use_accounts_cb = QCheckBox("Use Accounts sheet")
+                account_combo = QComboBox()
+                account_combo.addItem("")
+                account_combo.addItems(accounts_options)
+                account_combo.setEnabled(False)
+                line_edit = QLineEdit()
+                line_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+                def toggle_use_accounts(checked, combo=account_combo, edit=line_edit):
+                    combo.setEnabled(checked)
+                    edit.setEnabled(not checked)
+
+                use_accounts_cb.toggled.connect(toggle_use_accounts)
+                account_layout.addWidget(use_accounts_cb)
+                account_layout.addWidget(account_combo)
+                account_layout.addWidget(line_edit)
+                grid_layout.addWidget(header_label, col, 0)
+                grid_layout.addWidget(account_container, col, 1)
+                input_fields.append(("account_selector", use_accounts_cb, account_combo, line_edit))
+                continue
             elif header and header.strip().lower() == config.COL_DATE_RECEIVED.lower() and self.current_sheet_name == config.SHEET_EVIDENCE_TRACKER:
                 date_received_container = QWidget()
                 date_received_layout = QHBoxLayout(date_received_container)
@@ -1428,7 +1702,13 @@ class MainApp:
                 sheet = self.current_workbook[self.current_sheet_name]
                 new_row_data = []
                 for field in input_fields:
-                    if isinstance(field, tuple) and len(field) == 3 and field[0] == "date_received_optional":
+                    if isinstance(field, tuple) and len(field) == 4 and field[0] == "system_selector":
+                        _, checkbox, combo_box, line_edit = field
+                        new_text = combo_box.currentText().strip() if checkbox.isChecked() else line_edit.text()
+                    elif isinstance(field, tuple) and len(field) == 4 and field[0] == "account_selector":
+                        _, checkbox, combo_box, line_edit = field
+                        new_text = combo_box.currentText().strip() if checkbox.isChecked() else line_edit.text()
+                    elif isinstance(field, tuple) and len(field) == 3 and field[0] == "date_received_optional":
                         _, checkbox, date_edit = field
                         new_text = "" if checkbox.isChecked() else date_edit.date().toString("yyyy-MM-dd")
                     elif isinstance(field, QComboBox):
