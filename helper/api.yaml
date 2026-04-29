@@ -10,6 +10,6 @@ api_keys:
   URLhaus_API_KEY: ''
   VT_API_KEY: ''
   malpedia_API_KEY: ''
-  openAI_API_KEY: '1'
+  openAI_API_KEY: ''
   urlscan_API_KEY: ''
   vulners_API_KEY: ''

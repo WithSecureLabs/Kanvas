@@ -10,7 +10,7 @@ edu.json: https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads
 licensing.json: https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/licensing.json
 training.json: https://raw.githubusercontent.com/adamfowlerit/msportals.io/refs/heads/master/_data/portals/training.json
 evtx_id.csv: https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/evtx_id.csv
-mitre_techniques.csv: https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/mitre_techniques_v17.csv
+mitre_techniques.csv: https://raw.githubusercontent.com/arimboor/lookups/refs/heads/main/mitre_techniques_v18.csv
 known_exploited_vulnerabilities.csv: https://www.cisa.gov/sites/default/files/csv/known_exploited_vulnerabilities.csv
 MicrosoftApps.csv: https://raw.githubusercontent.com/merill/microsoft-info/main/_info/MicrosoftApps.csv
 GraphAppRoles.csv: https://raw.githubusercontent.com/merill/microsoft-info/main/_info/GraphAppRoles.csv
