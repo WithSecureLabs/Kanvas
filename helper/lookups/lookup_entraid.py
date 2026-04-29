@@ -8,6 +8,8 @@ import sqlite3
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -70,6 +72,34 @@ def build_error_html(message):
     </div>
     """
 
+ENTRA_LOOKUP_SOURCES = [
+    ("Local database", "SQLite (entra_appid table) — no external APIs"),
+]
+
+
+def show_entra_lookup_sources_dialog(parent):
+    """Open a dialog listing the data sources used by Entra AppID Lookup."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("Sources — Entra AppID Lookup")
+    dlg.setMinimumWidth(420)
+    layout = QVBoxLayout(dlg)
+    layout.setSpacing(12)
+    desc = QLabel("This lookup uses the following data sources:")
+    desc.setFont(QFont("Arial", 10))
+    desc.setWordWrap(True)
+    layout.addWidget(desc)
+    text = QTextEdit()
+    text.setReadOnly(True)
+    text.setFont(QFont("Consolas", 9))
+    text.setMaximumHeight(120)
+    lines = [f"• {name}\n  {url}" for name, url in ENTRA_LOOKUP_SOURCES]
+    text.setPlainText("\n\n".join(lines))
+    layout.addWidget(text)
+    bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+    bbox.accepted.connect(dlg.accept)
+    layout.addWidget(bbox)
+    dlg.exec()
+
 
 def open_entra_lookup_window(parent, db_path):
     entra_window = QWidget(parent)
@@ -117,13 +147,21 @@ def open_entra_lookup_window(parent, db_path):
     main_layout.addWidget(result_text, 1)
 
     button_layout = QHBoxLayout()
+    sources_button = QPushButton("Sources")
+    sources_button.setFixedWidth(100)
+    sources_button.setStyleSheet(styles.BUTTON_STYLE_GREY)
     close_button = QPushButton("Close")
     close_button.setFixedWidth(100)
     close_button.setStyleSheet(styles.BUTTON_STYLE_GREY)
     button_layout.addStretch()
+    button_layout.addWidget(sources_button)
     button_layout.addWidget(close_button)
     button_layout.addStretch()
     main_layout.addLayout(button_layout)
+
+    sources_button.clicked.connect(
+        lambda: show_entra_lookup_sources_dialog(entra_window)
+    )
 
     def fetch_appid_info():
         appid = appid_entry.text().strip()

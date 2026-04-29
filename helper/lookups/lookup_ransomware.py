@@ -6,7 +6,10 @@ import logging
 
 import requests
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -40,6 +43,34 @@ VICTIM_FIELDS = [
     ("extrainfos", "Extra Infos", "None"),
     ("press", "Press", "None"),
 ]
+
+RANSOMWARE_LOOKUP_SOURCES = [
+    ("Ransomware.live", RANSOMWARE_API_BASE),
+]
+
+
+def show_ransomware_lookup_sources_dialog(parent):
+    """Open a dialog listing the APIs used by Ransomware Victim Lookups."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("Sources — Ransomware Victim Lookups")
+    dlg.setMinimumWidth(420)
+    layout = QVBoxLayout(dlg)
+    layout.setSpacing(12)
+    desc = QLabel("This lookup uses the following data sources and APIs:")
+    desc.setFont(QFont("Arial", 10))
+    desc.setWordWrap(True)
+    layout.addWidget(desc)
+    text = QTextEdit()
+    text.setReadOnly(True)
+    text.setFont(QFont("Consolas", 9))
+    text.setMaximumHeight(120)
+    lines = [f"• {name}\n  {url}" for name, url in RANSOMWARE_LOOKUP_SOURCES]
+    text.setPlainText("\n\n".join(lines))
+    layout.addWidget(text)
+    bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+    bbox.accepted.connect(dlg.accept)
+    layout.addWidget(bbox)
+    dlg.exec()
 
 
 def open_ransomware_kb_window(parent_window):
@@ -87,13 +118,21 @@ def open_ransomware_kb_window(parent_window):
     main_layout.addWidget(result_text, 1)
 
     button_layout = QHBoxLayout()
+    sources_button = QPushButton("Sources")
+    sources_button.setFixedWidth(100)
+    sources_button.setStyleSheet(styles.BUTTON_STYLE_GREY)
     close_button = QPushButton("Close")
     close_button.setFixedWidth(100)
     close_button.setStyleSheet(styles.BUTTON_STYLE_GREY)
     button_layout.addStretch()
+    button_layout.addWidget(sources_button)
     button_layout.addWidget(close_button)
     button_layout.addStretch()
     main_layout.addLayout(button_layout)
+
+    sources_button.clicked.connect(
+        lambda: show_ransomware_lookup_sources_dialog(kb_window)
+    )
 
     def search_victim():
         victim_user = victim_entry.text().strip()

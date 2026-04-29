@@ -9,6 +9,8 @@ import requests
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -48,7 +50,35 @@ HASH_URL_TEMPLATES = {
     "ThreatFox": "https://threatfox.abuse.ch/browse/",
 }
 
+FILE_LOOKUP_SOURCES = [
+    ("VirusTotal", VT_FILES_API + "/{hash} (API key required)"),
+]
+
 active_hash_window = None
+
+
+def show_file_lookup_sources_dialog(parent):
+    """Open a dialog listing the APIs used by File Hash Lookup."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("Sources — File Hash Lookup")
+    dlg.setMinimumWidth(420)
+    layout = QVBoxLayout(dlg)
+    layout.setSpacing(12)
+    desc = QLabel("This lookup uses the following data sources and APIs:")
+    desc.setFont(QFont("Arial", 10))
+    desc.setWordWrap(True)
+    layout.addWidget(desc)
+    text = QTextEdit()
+    text.setReadOnly(True)
+    text.setFont(QFont("Consolas", 9))
+    text.setMaximumHeight(120)
+    lines = [f"• {name}\n  {url}" for name, url in FILE_LOOKUP_SOURCES]
+    text.setPlainText("\n\n".join(lines))
+    layout.addWidget(text)
+    bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+    bbox.accepted.connect(dlg.accept)
+    layout.addWidget(bbox)
+    dlg.exec()
 
 
 def open_hash_lookup_window(parent, db_path):
@@ -131,13 +161,21 @@ def open_hash_lookup_window(parent, db_path):
     main_layout.addWidget(result_text, 1)
 
     button_layout = QHBoxLayout()
+    sources_button = QPushButton("Sources")
+    sources_button.setFixedWidth(100)
+    sources_button.setStyleSheet(styles.BUTTON_STYLE_GREY)
     close_button = QPushButton("Close")
     close_button.setFixedWidth(100)
     close_button.setStyleSheet(styles.BUTTON_STYLE_GREY)
     button_layout.addStretch()
+    button_layout.addWidget(sources_button)
     button_layout.addWidget(close_button)
     button_layout.addStretch()
     main_layout.addLayout(button_layout)
+
+    sources_button.clicked.connect(
+        lambda: show_file_lookup_sources_dialog(hash_window)
+    )
 
     def get_vt_api_key():
         key = get_api_key("VT_API_KEY")

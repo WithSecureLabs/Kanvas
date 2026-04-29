@@ -13,6 +13,8 @@ import whois
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -49,7 +51,37 @@ DOMAIN_URL_TEMPLATES = {
 }
 HIGHLIGHT_KEYWORDS = ["Malicious", "Categories", "Associated IPs"]
 
+DOMAIN_LOOKUP_SOURCES = [
+    ("VirusTotal", "https://www.virustotal.com/api/v3/domains/{domain} (API key required)"),
+    ("WHOIS", "Standard WHOIS protocol (via python-whois)"),
+]
+
 active_domain_window = None
+
+
+def show_domain_lookup_sources_dialog(parent):
+    """Open a dialog listing the APIs used by Domain Lookup."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("Sources — Domain Lookup")
+    dlg.setMinimumWidth(420)
+    layout = QVBoxLayout(dlg)
+    layout.setSpacing(12)
+    desc = QLabel("This lookup uses the following data sources and APIs:")
+    desc.setFont(QFont("Arial", 10))
+    desc.setWordWrap(True)
+    layout.addWidget(desc)
+    text = QTextEdit()
+    text.setReadOnly(True)
+    text.setFont(QFont("Consolas", 9))
+    text.setMaximumHeight(160)
+    lines = [f"• {name}\n  {url}" for name, url in DOMAIN_LOOKUP_SOURCES]
+    text.setPlainText("\n\n".join(lines))
+    layout.addWidget(text)
+    bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+    bbox.accepted.connect(dlg.accept)
+    layout.addWidget(bbox)
+    dlg.exec()
+
 
 FORMAT_ORANGE_HEADER = QTextCharFormat()
 FORMAT_ORANGE_HEADER.setBackground(QColor(styles.HEADER_HIGHLIGHT_BG))
@@ -354,13 +386,21 @@ def open_domain_lookup_window(parent_window, db_path):
     main_layout.addWidget(result_text, 1)
 
     button_layout = QHBoxLayout()
+    sources_button = QPushButton("Sources")
+    sources_button.setFixedWidth(100)
+    sources_button.setStyleSheet(styles.BUTTON_STYLE_GREY)
     close_button = QPushButton("Close")
     close_button.setFixedWidth(100)
     close_button.setStyleSheet(styles.BUTTON_STYLE_GREY)
     button_layout.addStretch()
+    button_layout.addWidget(sources_button)
     button_layout.addWidget(close_button)
     button_layout.addStretch()
     main_layout.addLayout(button_layout)
+
+    sources_button.clicked.connect(
+        lambda: show_domain_lookup_sources_dialog(domain_window)
+    )
 
     def get_vt_api_key():
         key = get_api_key("VT_API_KEY")
