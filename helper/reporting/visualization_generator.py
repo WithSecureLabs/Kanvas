@@ -145,9 +145,14 @@ class VisualizationGenerator:
             except ValueError:
                 logger.warning("Required columns not found for timeline visualization")
                 return None
+            visualize_col = headers.index(config.COL_VISUALIZE) if config.COL_VISUALIZE in headers else None
             activities = []
             for row_idx in range(2, min(sheet.max_row + 1, MAX_TIMELINE_ROWS)):
                 try:
+                    if visualize_col is not None:
+                        visualize_val = sheet.cell(row=row_idx, column=visualize_col + 1).value
+                        if str(visualize_val).strip().lower() != config.VAL_VISUALIZE_YES:
+                            continue
                     dt_val = sheet.cell(row=row_idx, column=dt_col+1).value
                     desc_val = sheet.cell(row=row_idx, column=desc_col+1).value
                     mitre_val = sheet.cell(row=row_idx, column=mitre_col+1).value
@@ -162,9 +167,15 @@ class VisualizationGenerator:
                             activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d %H:%M:%S")
                         except ValueError:
                             try:
-                                activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d")
+                                activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d %H:%M:%S.%f")
                             except ValueError:
-                                continue
+                                try:
+                                    activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d %H:%M:%S:%f")
+                                except ValueError:
+                                    try:
+                                        activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d")
+                                    except ValueError:
+                                        continue
                     else:
                         continue
                     
@@ -239,12 +250,19 @@ class VisualizationGenerator:
             except ValueError:
                 logger.warning("Required columns not found for timeline data")
                 return None
+            visualize_col = headers.index(config.COL_VISUALIZE) if config.COL_VISUALIZE in headers else None
+            event_sys_col = headers.index(config.COL_EVENT_SYSTEM) if config.COL_EVENT_SYSTEM in headers else None
             events: List[Dict[str, Any]] = []
             for row_idx in range(2, min(sheet.max_row + 1, MAX_TIMELINE_ROWS)):
                 try:
+                    if visualize_col is not None:
+                        visualize_val = sheet.cell(row=row_idx, column=visualize_col + 1).value
+                        if str(visualize_val).strip().lower() != config.VAL_VISUALIZE_YES:
+                            continue
                     dt_val = sheet.cell(row=row_idx, column=dt_col + 1).value
                     desc_val = sheet.cell(row=row_idx, column=desc_col + 1).value
                     mitre_val = sheet.cell(row=row_idx, column=mitre_col + 1).value
+                    event_sys_val = sheet.cell(row=row_idx, column=event_sys_col + 1).value if event_sys_col is not None else None
                     
                     if not (dt_val and desc_val and mitre_val):
                         continue
@@ -255,14 +273,22 @@ class VisualizationGenerator:
                             activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d %H:%M:%S")
                         except ValueError:
                             try:
-                                activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d")
+                                activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d %H:%M:%S.%f")
                             except ValueError:
-                                continue
+                                try:
+                                    activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d %H:%M:%S:%f")
+                                except ValueError:
+                                    try:
+                                        activity_datetime = datetime.strptime(dt_val, "%Y-%m-%d")
+                                    except ValueError:
+                                        continue
                     else:
                         continue
                     desc_str = str(desc_val).replace("\t", " ").replace("\n", " ").replace("\r", " ")
                     mitre_str = str(mitre_val).replace("\t", " ").replace("\n", " ").replace("\r", " ")
                     short_desc = desc_str if len(desc_str) <= DESC_DATA_MAX else desc_str[:DESC_DATA_MAX - 3] + "..."
+                    event_sys_str = str(event_sys_val).strip() if event_sys_val is not None and str(event_sys_val).strip() else ""
+                    event_sys_str = event_sys_str.replace("\t", " ").replace("\n", " ").replace("\r", " ")[:LABEL_MAX_CHARS]
                     
                     events.append(
                         {
@@ -270,6 +296,8 @@ class VisualizationGenerator:
                             "timestamp_display": activity_datetime.strftime("%Y-%m-%d %H:%M:%S"),
                             "activity": short_desc,
                             "mitre_tactic": mitre_str,
+                            "event_system": event_sys_str,
+                            "_date": activity_datetime.date(),
                         }
                     )
                 except Exception:
@@ -277,6 +305,15 @@ class VisualizationGenerator:
             if not events:
                 return None
             events.sort(key=lambda e: e["timestamp"])
+            # Assign day number (Day 1, Day 2, ...) by distinct date
+            current_date = None
+            day_count = 0
+            for ev in events:
+                d = ev.pop("_date")
+                if d != current_date:
+                    current_date = d
+                    day_count += 1
+                ev["day"] = day_count
             return events
         except Exception as e:
             logger.error("Error building timeline data: %s", e)

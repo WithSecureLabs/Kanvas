@@ -855,6 +855,25 @@ class HTMLExporter:
             margin-top: 4px;
         }}
         
+        .incident-timeline-day {{
+            grid-column: 1 / -1;
+            font-weight: 700;
+            font-size: 1em;
+            color: #0d47a1;
+            margin: 16px 0 8px 0;
+            padding-bottom: 4px;
+        }}
+        .incident-timeline-day:first-child {{
+            margin-top: 0;
+        }}
+        
+        .incident-timeline-system {{
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #1b5e20;
+            margin-bottom: 2px;
+        }}
+        
         @media (max-width: 900px) {{
             .incident-timeline::before {{
                 display: none;
@@ -1652,7 +1671,15 @@ class HTMLExporter:
     if (!container) return;
     var timelineData = {timeline_data_json};
     if (!Array.isArray(timelineData) || !timelineData.length) return;
+    var lastDay = 0;
     timelineData.forEach(function(ev) {{
+        if (ev.day !== undefined && ev.day !== lastDay) {{
+            lastDay = ev.day;
+            var dayHeader = document.createElement('div');
+            dayHeader.className = 'incident-timeline-day';
+            dayHeader.textContent = 'Day ' + ev.day;
+            container.appendChild(dayHeader);
+        }}
         var item = document.createElement('div');
         item.className = 'incident-timeline-item';
 
@@ -1676,10 +1703,16 @@ class HTMLExporter:
         var tactic = document.createElement('div');
         tactic.className = 'incident-timeline-tactic';
         tactic.textContent = ev.mitre_tactic || '';
+        content.appendChild(tactic);
+        if (ev.event_system) {{
+            var sys = document.createElement('div');
+            sys.className = 'incident-timeline-system';
+            sys.textContent = 'System: ' + ev.event_system;
+            content.appendChild(sys);
+        }}
         var desc = document.createElement('div');
         desc.className = 'incident-timeline-activity';
         desc.textContent = ev.activity || '';
-        content.appendChild(tactic);
         content.appendChild(desc);
         item.appendChild(content);
 
@@ -1836,6 +1869,7 @@ class HTMLExporter:
             "OS",
             config.COL_ENTRY_POINT,
             config.COL_EVIDENCE_COLLECTED,
+            config.COL_REASON_FOR_LISTING,
             config.COL_NOTES,
         ]
         ACCOUNTS_DISPLAY_COLUMNS = [
@@ -1938,6 +1972,17 @@ class HTMLExporter:
                     mitre_section_added = True
             df = pd.DataFrame(sheet_data['data'], columns=sheet_data['columns'])
             if sheet_name == config.SHEET_SYSTEMS:
+                # Compromised Systems section: show only rows where Reason for Listing is 'Compromised'
+                reason_col = None
+                if config.COL_REASON_FOR_LISTING in df.columns:
+                    reason_col = config.COL_REASON_FOR_LISTING
+                else:
+                    for c in df.columns:
+                        if c and str(c).strip().lower().replace(" ", "") == "reasonforlisting":
+                            reason_col = c
+                            break
+                if reason_col is not None:
+                    df = df[df[reason_col].astype(str).str.strip().str.lower() == "compromised"]
                 # Exclude rows for Compromised Systems report section (before restricting columns)
                 if config.COL_SYSTEM_TYPE in df.columns:
                     df = df[df[config.COL_SYSTEM_TYPE].astype(str).str.strip() != "Attacker-Machine"]
@@ -1954,8 +1999,24 @@ class HTMLExporter:
                 available = [c for c in EVIDENCE_TRACKER_DISPLAY_COLUMNS if c in df.columns]
                 if available:
                     df = df[available]
-                if "Evidence ID" in df.columns:
-                    df = df.sort_values(by="Evidence ID").reset_index(drop=True)
+                # Sort by Evidence ID: support "Evidence ID" or "EvidenceID" (workbook header may vary)
+                evidence_id_col = None
+                for c in df.columns:
+                    if c and str(c).strip().lower().replace(" ", "") == "evidenceid":
+                        evidence_id_col = c
+                        break
+                if evidence_id_col is not None:
+                    def evidence_id_sort_key(series):
+                        def key_val(v):
+                            if pd.isna(v) or (isinstance(v, str) and not str(v).strip()):
+                                return (1, "")
+                            s = str(v).strip()
+                            try:
+                                return (0, float(s)) if s else (1, "")
+                            except (ValueError, TypeError):
+                                return (0, s)
+                        return series.map(key_val)
+                    df = df.sort_values(by=evidence_id_col, key=evidence_id_sort_key).reset_index(drop=True)
             elif sheet_name == config.SHEET_INDICATORS:
                 hash_cols = [c for c in INDICATORS_HASH_COLUMNS if c in df.columns]
                 if hash_cols:
@@ -2033,6 +2094,8 @@ class HTMLExporter:
                             indicator_type = str(row.get("IndicatorType", "")).strip() if pd.notna(row.get("IndicatorType")) else ""
                             if indicator_type.lower().replace(" ", "") in IOC_DEFANG_TYPES:
                                 value = defang_text(value)
+                        elif sheet_name == config.SHEET_SYSTEMS and col == config.COL_IP_ADDRESS and value:
+                            value = defang_text(value)
                         value = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                         if col == "Hash" and value:
                             lines = [ln.strip() for ln in value.split("\n") if ln.strip()]

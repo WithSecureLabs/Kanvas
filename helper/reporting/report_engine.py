@@ -172,6 +172,9 @@ class ReportEngine:
                     continue
                 df = self.get_sheet_data(workbook, sheet_name)
                 if not df.empty:
+                    # Compromised Systems: show only rows where Reason for Listing is 'Compromised'
+                    if sheet_name == config.SHEET_SYSTEMS and config.COL_REASON_FOR_LISTING in df.columns:
+                        df = df[df[config.COL_REASON_FOR_LISTING].astype(str).str.strip().str.lower() == "compromised"]
                     selected_cols = column_selections.get(sheet_name)
                     if selected_cols:
                         available_cols = [col for col in selected_cols if col in df.columns]
